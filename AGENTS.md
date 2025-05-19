@@ -11,7 +11,7 @@ Render a single 3D-Gaussian-Splat file (head.ply) in the browser with PlayCanvas
 Engine pieces we rely on
 
 Module	Role	Why chosen
-build/playcanvas.mjs	ES-module engine build	integrates with modern bundlers; tree-shakes
+playcanvas (package "module" field → build/playcanvas.mjs)	ES-module engine build	integrates with modern bundlers; tree-shakes
 @playcanvas/web-components	Registers <pc-app>, <pc-splat>, etc.	removes all manual boot code
 scripts/esm/camera-controls.mjs	Orbit / pan / zoom controller incl. inertia	single helper script; no extra inputs needed
 scripts/esm/xr-controllers.mjs, xr-navigation.mjs	WebXR hands + teleport	optional; harmless on desktop
@@ -45,17 +45,33 @@ Core HTML structure
 
 <pc-splat> automatically parses .ply or .sogs as Gaussian splats.
 
-JS bootstrap (src/main.js)
+JS bootstrap (public/main.js)
 
 import '@playcanvas/web-components';
-import * as pc from 'playcanvas/build/playcanvas.mjs';
+import * as pc from 'playcanvas';
 window.pc = pc;                               // legacy global expected by helpers
 
-import 'playcanvas/scripts/esm/camera-controls.mjs';
-import 'playcanvas/scripts/esm/xr-controllers.mjs';
-import 'playcanvas/scripts/esm/xr-navigation.mjs';
 
-Nothing else—registration happens on import.
+// Import helper scripts *and* register them so they can be referenced
+// by the <pc-script> tags in index.html. When these helpers are loaded
+// through PlayCanvas' script asset pipeline the registration is done
+// automatically, but because we bundle them with Vite we need to call
+// pc.registerScript ourselves.
+
+import { CameraControls }   from 'playcanvas/scripts/esm/camera-controls.mjs';
+import { XrControllers }    from 'playcanvas/scripts/esm/xr-controllers.mjs';
+import { XrNavigation }     from 'playcanvas/scripts/esm/xr-navigation.mjs';
+
+pc.registerScript(CameraControls, 'cameraControls');
+pc.registerScript(XrControllers, 'xrControllers');
+pc.registerScript(XrNavigation,  'xrNavigation');
+
+// (Registration must run *after* <pc-app> has created the
+// PlayCanvas application – listen for the element's `ready` event
+// if the script executes before the DOM has finished parsing.)
+
+Nothing else—once registered <pc-script name="…"> elements work as
+expected.
 
 Build & dev with Vite
 	•	Project root contains index.html and head.ply; Vite’s default config works.
