@@ -1,0 +1,21 @@
+{
+  "name": "latent-viewer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@playcanvas/web-components": "^0.2.6",
+    "playcanvas": "^2.7.5"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}
