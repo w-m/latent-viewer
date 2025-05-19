@@ -15,8 +15,8 @@
 </head>
 <body>
   <pc-app antialias="false" high-resolution="false">
-    <!-- Gaussian-Splat -->
-    <pc-asset id="head" src="head.ply" type="gsplat"></pc-asset>
+    <!-- SOGS compressed Gaussian-Splat -->
+    <pc-asset id="truck" src="truck/meta.json" type="gsplat"></pc-asset>
 
     <pc-scene>
       <pc-entity name="cameraRoot">
@@ -33,7 +33,7 @@
         </pc-scripts>
       </pc-entity>
 
-      <pc-entity name="head"><pc-splat asset="head"></pc-splat></pc-entity>
+      <pc-entity name="truck"><pc-splat asset="truck"></pc-splat></pc-entity>
     </pc-scene>
   </pc-app>
 </body>

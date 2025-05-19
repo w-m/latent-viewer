@@ -21,7 +21,7 @@ These scripts internally import 'playcanvas'; bundlers (Vite/Rollup) rewrite tha
 Core HTML structure
 
 <pc-app>
-  <pc-asset id="head" src="head.ply" type="gsplat"></pc-asset>
+<pc-asset id="truck" src="truck/meta.json" type="gsplat"></pc-asset>
 
   <pc-scene>
     <pc-entity name="cameraRoot">
@@ -37,8 +37,8 @@ Core HTML structure
       </pc-scripts>
     </pc-entity>
 
-    <pc-entity name="head">
-      <pc-splat asset="head"></pc-splat>
+    <pc-entity name="truck">
+      <pc-splat asset="truck"></pc-splat>
     </pc-entity>
   </pc-scene>
 </pc-app>

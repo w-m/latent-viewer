@@ -58,3 +58,39 @@ if (pcApp) {
 
 // All helper scripts will be available to the <pc-script> elements as
 // soon as `registerScripts` executes.
+
+// ------------------------------------------------------------------
+// Fix PlayCanvas SOGS relative-URL parsing
+// ------------------------------------------------------------------
+// PlayCanvas' GSplatHandler (used for both PLY and SOGS) converts
+// texture filenames to absolute URLs via `new URL(filename, asset.url)`.
+// If `asset.url` itself is *relative*, the call throws. We therefore
+// convert all <pc-asset type="gsplat"> elements that reference a
+// relative URL into absolute URLs based on the current document
+// location before the <pc-app> element begins loading assets.
+
+const absolutizeUrls = () => {
+  document.querySelectorAll('pc-asset[type="gsplat"]').forEach((el) => {
+    const src = el.getAttribute('src');
+    if (!src) return;
+
+    // Quickly detect already-absolute URLs (http, https, data, blob etc.)
+    // A leading slash is also safe (root-relative), so only rewrite plain
+    // relative paths that lack a scheme or leading slash.
+    const isAbsolute = /^(?:[a-zA-Z][a-zA-Z\d+.-]*:|\/)/.test(src);
+    if (isAbsolute) return;
+
+    try {
+      const abs = new URL(src, document.baseURI).toString();
+      el.setAttribute('src', abs);
+    } catch (e) {
+      console.warn('Failed to absolutize GSplat asset URL', src, e);
+    }
+  });
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', absolutizeUrls, { once: true });
+} else {
+  absolutizeUrls();
+}
