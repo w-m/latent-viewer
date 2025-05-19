@@ -47,6 +47,7 @@ Core HTML structure
 
 JS bootstrap (src/main.js)
 
+import '@playcanvas/web-components';
 import * as pc from 'playcanvas/build/playcanvas.mjs';
 window.pc = pc;                               // legacy global expected by helpers
 
