@@ -1,3 +1,4 @@
+
 // 1) web-components runtime
 import '@playcanvas/web-components';
 
@@ -9,6 +10,8 @@ window.pc = pc;
 import { CameraControls } from 'playcanvas/scripts/esm/camera-controls.mjs';
 import { XrControllers } from 'playcanvas/scripts/esm/xr-controllers.mjs';
 import { XrNavigation } from 'playcanvas/scripts/esm/xr-navigation.mjs';
+
+import React from 'react';
 
 // ------------------------------------------------------------------
 // kick off everything once <pc-app> exists AND signals `ready`
@@ -98,16 +101,38 @@ function initDynamicLoader(pcApp) {
   async function switchModel(dir) {
     holder.gsplat.asset = await getAsset(dir);
   }
+  
+  // Expose switchModel globally so the grid can use it
+  window.switchModel = switchModel;
 
   // initial model
   switchModel('compressed_head_models/model_b1');
-
-  // Model selection buttons
-  const modelA0Button = document.getElementById('modelA0');
-  const modelA1Button = document.getElementById('modelA1');
-  const modelC2Button = document.getElementById('modelC2');
-  
-  modelA0Button.addEventListener('click', () => switchModel('compressed_head_models/model_a0'));
-  modelA1Button.addEventListener('click', () => switchModel('compressed_head_models/model_a1'));
-  modelC2Button.addEventListener('click', () => switchModel('compressed_head_models/model_c2'));
 }
+
+import { createRoot } from 'react-dom/client';
+import { LatentGrid } from './LatentGrid';
+
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Grid integration starting...');
+  const gridContainer = document.getElementById('latentGrid');
+  if (!gridContainer) {
+    console.error('Grid container not found');
+    return;
+  }
+  const root = createRoot(gridContainer);
+  
+  // Just render the grid with minimal props
+  root.render(
+    React.createElement(LatentGrid, {
+      gridSize: 3,
+      cellPx: 60,  // small size to fit in 200px sidebar
+      cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
+      onLatentChange: (row, col) => {
+        // Convert row,col to model name (a0 through c2)
+        const modelLetter = String.fromCharCode(97 + row); // 97 = 'a'
+        const modelPath = `compressed_head_models/model_${modelLetter}${col}`;
+        window.switchModel(modelPath);
+      },
+    })
+  );
+});

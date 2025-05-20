@@ -7,6 +7,7 @@
 
   <!-- load our JS bundle -->
   <script type="module" src="./main.js"></script>
+  <!-- <script type="module" src="./grid-integration.js"></script> -->
 
   <style>
     html,body{margin:0;width:100vw;height:100vh;overflow:hidden;background:#000}
@@ -24,6 +25,7 @@
       flex-direction: column;
       gap: 8px;
       align-items: center;
+      min-height: 0;
     }
     .buttons-container {
       display: flex;
@@ -63,9 +65,9 @@
 <body>
   <div class="container">
     <div class="left-pane">
-        <button id="modelA0">Model A0</button>
-        <button id="modelA1">Model A1</button>
-        <button id="modelC2">Model C2</button>
+        <div class="grid-container">
+            <div id="latentGrid"></div>
+        </div>
     </div>
     <div class="right-pane">
       <pc-app antialias="false" high-resolution="false">
