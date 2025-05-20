@@ -1,96 +1,110 @@
-// 1) register web-components runtime
+// 1) web-components runtime
 import '@playcanvas/web-components';
 
-// 2) bring PlayCanvas ES-module build into the bundle
+// 2) expose PlayCanvas build
 import * as pc from 'playcanvas';
-window.pc = pc;      // legacy helper scripts expect global `pc`
+window.pc = pc;
 
-// 3) register the helper modules that sit inside node_modules
-// Helper scripts ---------------------------------------------
-// Import the helper script classes *and* register them with the
-// PlayCanvas script registry so they can be referenced by name
-// from the <pc-script> tags defined in index.html. When these
-// helpers are loaded via the PlayCanvas asset pipeline the
-// registry step is done automatically, but because we import
-// them directly here we need to perform the registration
-// manually.
-
+// 3) helper scripts
 import { CameraControls } from 'playcanvas/scripts/esm/camera-controls.mjs';
 import { XrControllers } from 'playcanvas/scripts/esm/xr-controllers.mjs';
 import { XrNavigation } from 'playcanvas/scripts/esm/xr-navigation.mjs';
 
-// The PlayCanvas application is created by the <pc-app> element which
-// lives in index.html. We need to defer registration until the app is
-// ready, otherwise `pc.registerScript` cannot locate the script
-// registry (it lives on the `pc.Application` instance that gets
-// created inside <pc-app>).
-
-const pcApp = document.querySelector('pc-app');
-
-// If the element has already finished initialising we can register
-// immediately; otherwise listen for its `ready` event.
-
-const registerScripts = () => {
-  pc.registerScript(CameraControls, 'cameraControls');
-  pc.registerScript(XrControllers, 'xrControllers');
-  pc.registerScript(XrNavigation, 'xrNavigation');
-};
-
-if (pcApp) {
-  if (pcApp.hierarchyReady) {
-    registerScripts();
-  } else {
-    pcApp.addEventListener('ready', registerScripts, { once: true });
+// ------------------------------------------------------------------
+// kick off everything once <pc-app> exists AND signals `ready`
+// ------------------------------------------------------------------
+window.addEventListener('DOMContentLoaded', () => {
+  const pcApp = document.querySelector('pc-app');
+  if (!pcApp) {
+    console.error('<pc-app> not found in DOM');
+    return;
   }
-} else {
-  // pc-app not in the DOM yet – wait until the document is fully parsed
-  window.addEventListener('DOMContentLoaded', () => {
-    const appEl = document.querySelector('pc-app');
-    if (appEl) {
-      if (appEl.hierarchyReady) {
-        registerScripts();
-      } else {
-        appEl.addEventListener('ready', registerScripts, { once: true });
-      }
-    }
-  });
-}
 
-// All helper scripts will be available to the <pc-script> elements as
-// soon as `registerScripts` executes.
+  pcApp.addEventListener(
+    'ready',
+    () => {
+      // --- register helper scripts
+      pc.registerScript(CameraControls, 'cameraControls');
+      pc.registerScript(XrControllers,  'xrControllers');
+      pc.registerScript(XrNavigation,   'xrNavigation');
+
+      // --- dynamic GSplat loader with LRU cache
+      initDynamicLoader(pcApp);
+    },
+    { once: true }
+  );
+});
 
 // ------------------------------------------------------------------
-// Fix PlayCanvas SOGS relative-URL parsing
+// Dynamic GSplat loader / switcher
 // ------------------------------------------------------------------
-// PlayCanvas' GSplatHandler (used for both PLY and SOGS) converts
-// texture filenames to absolute URLs via `new URL(filename, asset.url)`.
-// If `asset.url` itself is *relative*, the call throws. We therefore
-// convert all <pc-asset type="gsplat"> elements that reference a
-// relative URL into absolute URLs based on the current document
-// location before the <pc-app> element begins loading assets.
+function initDynamicLoader(pcApp) {
+  const app      = pcApp.app;
+  const toggle   = document.getElementById('modelToggle');
 
-const absolutizeUrls = () => {
-  document.querySelectorAll('pc-asset[type="gsplat"]').forEach((el) => {
-    const src = el.getAttribute('src');
-    if (!src) return;
+  // permanent entity that owns the gsplat component
+  const holder = new pc.Entity('viewer');
+  holder.addComponent('gsplat', { asset: null });
+  app.root.addChild(holder);
 
-    // Quickly detect already-absolute URLs (http, https, data, blob etc.)
-    // A leading slash is also safe (root-relative), so only rewrite plain
-    // relative paths that lack a scheme or leading slash.
-    const isAbsolute = /^(?:[a-zA-Z][a-zA-Z\d+.-]*:|\/)/.test(src);
-    if (isAbsolute) return;
+  // simple LRU cache: dir → Asset  (insertion order = recency)
+  const cache      = new Map();
+  const MAX_CACHE  = 8;               // keep last N models in RAM
 
-    try {
-      const abs = new URL(src, document.baseURI).toString();
-      el.setAttribute('src', abs);
-    } catch (e) {
-      console.warn('Failed to absolutize GSplat asset URL', src, e);
+  // hard-unload asset + purge handler caches
+  function evict(asset) {
+    if (holder.gsplat.asset === asset) holder.gsplat.asset = null;
+
+    app.assets.remove(asset);
+    asset.resource?.destroy();        // VB / IB / textures
+    asset.unload();
+
+    const texH = app.loader.getHandler('texture');
+    const binH = app.loader.getHandler('binary');
+    asset.file?.textures?.forEach((t) => texH._cache.delete(t.url));
+    asset.file?.buffers ?.forEach((b) => binH._cache.delete(b.url));
+  }
+
+  async function getAsset(dir) {
+    if (cache.has(dir)) {
+      // bump to most-recent
+      const a = cache.get(dir);
+      cache.delete(dir);
+      cache.set(dir, a);
+      return a;
     }
-  });
-};
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', absolutizeUrls, { once: true });
-} else {
-  absolutizeUrls();
+    const url   = new URL(`${dir}/meta.json`, document.baseURI).href;
+    const asset = new pc.Asset(`gsplat-${dir}`, 'gsplat', { url });
+    app.assets.add(asset);
+
+    // start load *before* waiting for completion
+    app.assets.load(asset);
+    await new Promise((res, rej) => {
+      asset.once('load', res);
+      asset.once('error', rej);
+    });
+
+    cache.set(dir, asset);
+
+    // LRU eviction
+    if (cache.size > MAX_CACHE) {
+      const [ , oldest ] = cache.entries().next().value; // first inserted
+      cache.delete(oldest.name.replace('gsplat-', ''));
+      evict(oldest);
+    }
+    return asset;
+  }
+
+  async function switchModel(dir) {
+    holder.gsplat.asset = await getAsset(dir);
+  }
+
+  // initial model
+  switchModel('truck');
+
+  // UI toggle
+  toggle.addEventListener('change', () =>
+    switchModel(toggle.checked ? 'face' : 'truck')
+  );
 }

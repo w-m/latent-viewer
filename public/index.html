@@ -15,9 +15,6 @@
 </head>
 <body>
   <pc-app antialias="false" high-resolution="false">
-    <!-- SOGS compressed Gaussian-Splat -->
-    <pc-asset id="truck" src="truck/meta.json" type="gsplat"></pc-asset>
-
     <pc-scene>
       <pc-entity name="cameraRoot">
         <pc-entity name="camera" position="0 0 2">
@@ -32,9 +29,14 @@
           <pc-script name="xrNavigation"></pc-script>
         </pc-scripts>
       </pc-entity>
-
-      <pc-entity name="truck"><pc-splat asset="truck"></pc-splat></pc-entity>
     </pc-scene>
   </pc-app>
+
+
+<label style="position:fixed;top:8px;left:8px;z-index:10;
+              background:#000a;color:#fff;padding:4px 8px;font:14px sans-serif">
+  <input type="checkbox" id="modelToggle"> face
+</label>
+
 </body>
 </html>
