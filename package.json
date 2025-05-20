@@ -13,9 +13,17 @@
   "description": "",
   "dependencies": {
     "@playcanvas/web-components": "^0.2.6",
-    "playcanvas": "^2.7.6"
+    "konva": "^9.3.20",
+    "playcanvas": "^2.7.7",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-konva": "^19.0.3"
   },
   "devDependencies": {
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "^5.8.3",
     "vite": "^6.3.5"
   }
 }
