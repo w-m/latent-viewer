@@ -13,7 +13,7 @@
   "description": "",
   "dependencies": {
     "@playcanvas/web-components": "^0.2.6",
-    "playcanvas": "^2.7.5"
+    "playcanvas": "^2.7.6"
   },
   "devDependencies": {
     "vite": "^6.3.5"
