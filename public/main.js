@@ -40,7 +40,6 @@ window.addEventListener('DOMContentLoaded', () => {
 // ------------------------------------------------------------------
 function initDynamicLoader(pcApp) {
   const app      = pcApp.app;
-  const toggle   = document.getElementById('modelToggle');
 
   // permanent entity that owns the gsplat component
   const holder = new pc.Entity('viewer');
@@ -101,10 +100,14 @@ function initDynamicLoader(pcApp) {
   }
 
   // initial model
-  switchModel('truck');
+  switchModel('compressed_head_models/model_b1');
 
-  // UI toggle
-  toggle.addEventListener('change', () =>
-    switchModel(toggle.checked ? 'face' : 'truck')
-  );
+  // Model selection buttons
+  const modelA0Button = document.getElementById('modelA0');
+  const modelA1Button = document.getElementById('modelA1');
+  const modelC2Button = document.getElementById('modelC2');
+  
+  modelA0Button.addEventListener('click', () => switchModel('compressed_head_models/model_a0'));
+  modelA1Button.addEventListener('click', () => switchModel('compressed_head_models/model_a1'));
+  modelC2Button.addEventListener('click', () => switchModel('compressed_head_models/model_c2'));
 }
