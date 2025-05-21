@@ -24,7 +24,14 @@ import { LatentGrid } from './LatentGrid';
 
 // Define interfaces for better type safety
 interface GSplatEntity extends pc.Entity {
-  gsplat: pc.GSplatComponent;
+  gsplat: pc.GSplatComponent & {
+    instance?: {
+      sorter: {
+        once(event: 'updated', callback: () => void): void;
+        on(event: 'updated', callback: () => void): void;
+      };
+    };
+  };
 }
 
 // Initial placeholder implementation
@@ -105,11 +112,9 @@ function initializeReactGrid(): void {
  */
 function initDynamicLoader(pcApp: any): void {
   const app = pcApp.app;
-  const GRACE = 5; // frames to overlap (tweak as needed)
 
   let liveEnt: GSplatEntity = makeViewer();
   let pendingEnt: GSplatEntity | null = null;
-  let framesLeft = 0;
 
   app.root.addChild(liveEnt);
 
@@ -132,21 +137,13 @@ function initDynamicLoader(pcApp: any): void {
     if (asset) app.assets.remove(asset);
   }
 
-  // Global post-render hook for cleanup
-  app.on('postrender', () => {
-    if (pendingEnt && --framesLeft === 0) {
-      app.root.removeChild(pendingEnt);
-      // Use type assertion to fix TypeScript error
-      destroyAsset(pendingEnt.gsplat.asset as pc.Asset | null);
-      pendingEnt = null;
-    }
-  });
-
   /**
    * Switch to a new GSplat model
    * @param dir - Directory containing the model
    */
   async function switchModel(dir: string): Promise<void> {
+    console.log(`Switching to model: ${dir}`);
+    
     // If a previous pendingEnt still exists, evict it now
     if (pendingEnt) {
       app.root.removeChild(pendingEnt);
@@ -165,15 +162,60 @@ function initDynamicLoader(pcApp: any): void {
     try {
       // Wait until JSON + buffers in RAM
       await new Promise<void>((resolve, reject) => {
-        asset.once('load', resolve);
-        asset.once('error', reject);
+        asset.once('load', () => {
+          console.log(`Asset loaded: ${dir}`);
+          resolve();
+        });
+        asset.once('error', (err) => {
+          console.error(`Asset loading error: ${dir}`, err);
+          reject(err);
+        });
         app.assets.load(asset);
       });
 
-      nextEnt.gsplat.asset = asset;   // Start GPU upload, appears soon
-      pendingEnt = liveEnt;          // Mark previous as stale
-      framesLeft = GRACE;            // Start overlap countdown
-      liveEnt = nextEnt;             // Promote new entity
+      // Set the asset to start GPU upload
+      nextEnt.gsplat.asset = asset;
+      console.log(`Asset assigned to entity, waiting for renderer: ${dir}`);
+      
+      // Wait for the sorter to update - a single update means the model is rendered
+      await new Promise<void>(resolve => {
+        const maxRetries = 5;
+        let retries = 0;
+        
+        const tryAttachSorterListener = () => {
+          if (nextEnt.gsplat.instance?.sorter) {
+            console.log(`Found sorter, attaching event listener: ${dir}`);
+            nextEnt.gsplat.instance.sorter.once('updated', () => {
+              console.log(`Sorter updated event received: ${dir}`);
+              resolve();
+            });
+          } else {
+            retries++;
+            if (retries < maxRetries) {
+              console.log(`Sorter not found, retry ${retries}/${maxRetries} for: ${dir}`);
+              setTimeout(tryAttachSorterListener, 50 * retries); // Increasing backoff
+            } else {
+              // Fallback if sorter is not available after retries
+              console.warn(`GSplat sorter not found after ${maxRetries} retries for ${dir}, using fallback`);
+              setTimeout(resolve, 300);
+            }
+          }
+        };
+        
+        // Start the retry process
+        setTimeout(tryAttachSorterListener, 20);
+      });
+      
+      // Now that new model is rendered, remove the old one
+      if (liveEnt !== nextEnt) {
+        console.log(`Removing old model, switching to: ${dir}`);
+        app.root.removeChild(liveEnt);
+        destroyAsset(liveEnt.gsplat.asset as pc.Asset | null);
+      }
+      
+      // Promote new entity to live
+      liveEnt = nextEnt;
+      console.log(`Model switch complete: ${dir}`);
     } catch (err) {
       console.error(`Failed to load ${dir}`, err);
       app.root.removeChild(nextEnt);
