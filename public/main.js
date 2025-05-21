@@ -17,14 +17,22 @@ import { LatentGrid } from './LatentGrid';
 
 // Define a placeholder switchModel immediately, ensuring it's always available
 window.switchModel = function(dir) {
-  console.log('Placeholder switchModel called with:', dir);
+  // Placeholder - will be replaced with actual implementation
 };
+
+// Global initialization flag to prevent multiple initializations
+let hasInitialized = false;
 
 // ------------------------------------------------------------------
 // New initialization function that's more robust across browsers
 // ------------------------------------------------------------------
 function initApplication() {
-  console.log('Application initialization starting');
+  // Guard against multiple initializations
+  if (hasInitialized) {
+    return;
+  }
+  
+  hasInitialized = true;
   
   const pcApp = document.querySelector('pc-app');
   if (!pcApp) {
@@ -39,7 +47,6 @@ function initApplication() {
   pcApp.addEventListener(
     'ready',
     () => {
-      console.log('PC App is ready');
       // --- register helper scripts
       pc.registerScript(CameraControls, 'cameraControls');
       pc.registerScript(XrControllers, 'xrControllers');
@@ -54,14 +61,11 @@ function initApplication() {
 
 // Separate function to initialize the React grid
 function initializeReactGrid() {
-  console.log('Starting React grid initialization');
   const gridContainer = document.getElementById('latentGrid');
   if (!gridContainer) {
     console.error('Grid container not found');
     return;
   }
-  
-  console.log('Grid container found:', gridContainer);
   
   try {
     const root = createRoot(gridContainer);
@@ -73,12 +77,10 @@ function initializeReactGrid() {
         onLatentChange: (row, col) => {
           const modelLetter = String.fromCharCode(97 + row); // 97 = 'a'
           const modelPath = `compressed_head_models/model_${modelLetter}${col}`;
-          console.log('Switching to model:', modelPath);
           window.switchModel(modelPath);
         },
       })
     );
-    console.log('Grid rendered successfully');
   } catch (error) {
     console.error('Error rendering grid:', error);
   }
@@ -88,7 +90,6 @@ function initializeReactGrid() {
 // Dynamic GSplat loader / switcher
 // ------------------------------------------------------------------
 function initDynamicLoader(pcApp) {
-  console.log('Initializing dynamic loader');
   const app = pcApp.app;
 
   const GRACE = 5;                 // frames to overlap (tweak as needed)
@@ -122,7 +123,6 @@ function initDynamicLoader(pcApp) {
 
   // ───────────────── model switcher
   async function switchModel(dir) {
-    console.log('Loading GSplat model:', dir);
     // if a previous pendingEnt still exists, evict it now
     if (pendingEnt) {
       app.root.removeChild(pendingEnt);
@@ -150,7 +150,6 @@ function initDynamicLoader(pcApp) {
       pendingEnt = liveEnt;          // mark previous as stale
       framesLeft = GRACE;            // start overlap countdown
       liveEnt    = nextEnt;          // promote new entity
-      console.log('Model loaded successfully:', dir);
     } catch (err) {
       console.error(`Failed to load ${dir}`, err);
       app.root.removeChild(nextEnt);
@@ -160,16 +159,27 @@ function initDynamicLoader(pcApp) {
 
   // expose to grid
   window.switchModel = switchModel;
-  console.log('Initialized window.switchModel, loading initial model');
   switchModel('compressed_head_models/model_b1'); // initial model
 }
 
 // ------------------------------------------------------------------
 // Start the application - using multiple methods to ensure it runs
 // ------------------------------------------------------------------
-console.log('Script loaded, preparing to initialize application');
 
 // Method 1: Use DOMContentLoaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApplication);
+} else {
+  // Method 2: Document already loaded
+  initApplication();
+}
+
+// Method 3: Use window.onload as a fallback
+window.addEventListener('load', () => {
+  if (!hasInitialized) {
+    initApplication();
+  }
+});
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApplication);
   console.log('Waiting for DOMContentLoaded event');
@@ -182,11 +192,9 @@ if (document.readyState === 'loading') {
 // Method 3: Use window.onload as a fallback
 window.addEventListener('load', () => {
   console.log('Window load event triggered');
-  // Check if we've already started initialization
-  const pcApp = document.querySelector('pc-app');
-  if (pcApp && !pcApp._hasInitializedApp) {
+  // Only initialize if we haven't already
+  if (!hasInitialized) {
     console.log('Initializing from window.onload fallback');
-    pcApp._hasInitializedApp = true;
     initApplication();
   }
 });
