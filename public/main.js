@@ -1,4 +1,3 @@
-
 // 1) web-components runtime
 import '@playcanvas/web-components';
 
@@ -40,74 +39,83 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ------------------------------------------------------------------
 // Dynamic GSplat loader / switcher
+//  • keeps at most TWO entities in scene
+//  • old one stays visible for GRACE frames,
+//    even if the user drags again during that period
 // ------------------------------------------------------------------
 function initDynamicLoader(pcApp) {
-  const app      = pcApp.app;
+  const app = pcApp.app;
 
-  // permanent entity that owns the gsplat component
-  const holder = new pc.Entity('viewer');
-  holder.addComponent('gsplat', { asset: null });
-  app.root.addChild(holder);
+  const GRACE = 20;                 // frames to overlap (tweak as needed)
 
-  // simple LRU cache: dir → Asset  (insertion order = recency)
-  const cache      = new Map();
-  const MAX_CACHE  = 8;               // keep last N models in RAM
+  let liveEnt     = makeViewer();   // model currently shown
+  let pendingEnt  = null;           // model waiting for eviction
+  let framesLeft  = 0;              // countdown for pendingEnt
 
-  // hard-unload asset + purge handler caches
-  function evict(asset) {
-    if (holder.gsplat.asset === asset) holder.gsplat.asset = null;
+  app.root.addChild(liveEnt);
 
-    app.assets.remove(asset);
-    asset.resource?.destroy();        // VB / IB / textures
-    asset.unload();
-
-    const texH = app.loader.getHandler('texture');
-    const binH = app.loader.getHandler('binary');
-    asset.file?.textures?.forEach((t) => texH._cache.delete(t.url));
-    asset.file?.buffers ?.forEach((b) => binH._cache.delete(b.url));
+  // ───────────────── helpers
+  function makeViewer() {
+    const e = new pc.Entity('gsplat-holder');
+    e.addComponent('gsplat', { asset: null });
+    return e;
   }
 
-  async function getAsset(dir) {
-    if (cache.has(dir)) {
-      // bump to most-recent
-      const a = cache.get(dir);
-      cache.delete(dir);
-      cache.set(dir, a);
-      return a;
+  function destroyAsset(asset) {
+    if (asset?.resource) asset.resource.destroy();
+    app.assets.remove(asset);
+  }
+
+  // global post-render hook ➜ ticks countdown once per frame
+  app.on('postrender', () => {
+    if (pendingEnt && --framesLeft === 0) {
+      app.root.removeChild(pendingEnt);
+      destroyAsset(pendingEnt.gsplat.asset);
+      pendingEnt = null;
+    }
+  });
+
+  // ───────────────── model switcher
+  async function switchModel(dir) {
+    // if a previous pendingEnt still exists, evict it now
+    if (pendingEnt) {
+      app.root.removeChild(pendingEnt);
+      destroyAsset(pendingEnt.gsplat.asset);
+      pendingEnt = null;
     }
 
+    // build new asset + entity
     const url   = new URL(`${dir}/meta.json`, document.baseURI).href;
     const asset = new pc.Asset(`gsplat-${dir}`, 'gsplat', { url });
     app.assets.add(asset);
 
-    // start load *before* waiting for completion
-    app.assets.load(asset);
-    await new Promise((res, rej) => {
-      asset.once('load', res);
-      asset.once('error', rej);
-    });
+    const nextEnt = makeViewer();
+    app.root.addChild(nextEnt);
 
-    cache.set(dir, asset);
+    try {
+      // wait until JSON + buffers in RAM
+      await new Promise((res, rej) => {
+        asset.once('load', res);
+        asset.once('error', rej);
+        app.assets.load(asset);
+      });
 
-    // LRU eviction
-    if (cache.size > MAX_CACHE) {
-      const [ , oldest ] = cache.entries().next().value; // first inserted
-      cache.delete(oldest.name.replace('gsplat-', ''));
-      evict(oldest);
+      nextEnt.gsplat.asset = asset;   // start GPU upload, appears soon
+      pendingEnt = liveEnt;          // mark previous as stale
+      framesLeft = GRACE;            // start overlap countdown
+      liveEnt    = nextEnt;          // promote new entity
+    } catch (err) {
+      console.error(`Failed to load ${dir}`, err);
+      app.root.removeChild(nextEnt);
+      destroyAsset(asset);
     }
-    return asset;
   }
 
-  async function switchModel(dir) {
-    holder.gsplat.asset = await getAsset(dir);
-  }
-  
-  // Expose switchModel globally so the grid can use it
+  // expose to grid
   window.switchModel = switchModel;
-
-  // initial model
-  switchModel('compressed_head_models/model_b1');
+  switchModel('compressed_head_models/model_b1'); // initial model
 }
+
 
 import { createRoot } from 'react-dom/client';
 import { LatentGrid } from './LatentGrid';
