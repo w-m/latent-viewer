@@ -10,43 +10,88 @@ import { CameraControls } from 'playcanvas/scripts/esm/camera-controls.mjs';
 import { XrControllers } from 'playcanvas/scripts/esm/xr-controllers.mjs';
 import { XrNavigation } from 'playcanvas/scripts/esm/xr-navigation.mjs';
 
+// 4) React components
 import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { LatentGrid } from './LatentGrid';
+
+// Define a placeholder switchModel immediately, ensuring it's always available
+window.switchModel = function(dir) {
+  console.log('Placeholder switchModel called with:', dir);
+};
 
 // ------------------------------------------------------------------
-// kick off everything once <pc-app> exists AND signals `ready`
+// New initialization function that's more robust across browsers
 // ------------------------------------------------------------------
-window.addEventListener('DOMContentLoaded', () => {
+function initApplication() {
+  console.log('Application initialization starting');
+  
   const pcApp = document.querySelector('pc-app');
   if (!pcApp) {
     console.error('<pc-app> not found in DOM');
     return;
   }
-
+  
+  // Initialize React UI immediately - don't wait for pcApp.ready
+  initializeReactGrid();
+  
+  // Wait for the PC app to be ready
   pcApp.addEventListener(
     'ready',
     () => {
+      console.log('PC App is ready');
       // --- register helper scripts
       pc.registerScript(CameraControls, 'cameraControls');
-      pc.registerScript(XrControllers,  'xrControllers');
-      pc.registerScript(XrNavigation,   'xrNavigation');
+      pc.registerScript(XrControllers, 'xrControllers');
+      pc.registerScript(XrNavigation, 'xrNavigation');
 
       // --- dynamic GSplat loader with LRU cache
       initDynamicLoader(pcApp);
     },
     { once: true }
   );
-});
+}
+
+// Separate function to initialize the React grid
+function initializeReactGrid() {
+  console.log('Starting React grid initialization');
+  const gridContainer = document.getElementById('latentGrid');
+  if (!gridContainer) {
+    console.error('Grid container not found');
+    return;
+  }
+  
+  console.log('Grid container found:', gridContainer);
+  
+  try {
+    const root = createRoot(gridContainer);
+    root.render(
+      React.createElement(LatentGrid, {
+        gridSize: 3,
+        cellPx: 60,
+        cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
+        onLatentChange: (row, col) => {
+          const modelLetter = String.fromCharCode(97 + row); // 97 = 'a'
+          const modelPath = `compressed_head_models/model_${modelLetter}${col}`;
+          console.log('Switching to model:', modelPath);
+          window.switchModel(modelPath);
+        },
+      })
+    );
+    console.log('Grid rendered successfully');
+  } catch (error) {
+    console.error('Error rendering grid:', error);
+  }
+}
 
 // ------------------------------------------------------------------
 // Dynamic GSplat loader / switcher
-//  • keeps at most TWO entities in scene
-//  • old one stays visible for GRACE frames,
-//    even if the user drags again during that period
 // ------------------------------------------------------------------
 function initDynamicLoader(pcApp) {
+  console.log('Initializing dynamic loader');
   const app = pcApp.app;
 
-  const GRACE = 20;                 // frames to overlap (tweak as needed)
+  const GRACE = 5;                 // frames to overlap (tweak as needed)
 
   let liveEnt     = makeViewer();   // model currently shown
   let pendingEnt  = null;           // model waiting for eviction
@@ -77,6 +122,7 @@ function initDynamicLoader(pcApp) {
 
   // ───────────────── model switcher
   async function switchModel(dir) {
+    console.log('Loading GSplat model:', dir);
     // if a previous pendingEnt still exists, evict it now
     if (pendingEnt) {
       app.root.removeChild(pendingEnt);
@@ -104,6 +150,7 @@ function initDynamicLoader(pcApp) {
       pendingEnt = liveEnt;          // mark previous as stale
       framesLeft = GRACE;            // start overlap countdown
       liveEnt    = nextEnt;          // promote new entity
+      console.log('Model loaded successfully:', dir);
     } catch (err) {
       console.error(`Failed to load ${dir}`, err);
       app.root.removeChild(nextEnt);
@@ -113,34 +160,33 @@ function initDynamicLoader(pcApp) {
 
   // expose to grid
   window.switchModel = switchModel;
+  console.log('Initialized window.switchModel, loading initial model');
   switchModel('compressed_head_models/model_b1'); // initial model
 }
 
+// ------------------------------------------------------------------
+// Start the application - using multiple methods to ensure it runs
+// ------------------------------------------------------------------
+console.log('Script loaded, preparing to initialize application');
 
-import { createRoot } from 'react-dom/client';
-import { LatentGrid } from './LatentGrid';
+// Method 1: Use DOMContentLoaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApplication);
+  console.log('Waiting for DOMContentLoaded event');
+} else {
+  // Method 2: Document already loaded
+  console.log('Document already loaded, initializing now');
+  initApplication();
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Grid integration starting...');
-  const gridContainer = document.getElementById('latentGrid');
-  if (!gridContainer) {
-    console.error('Grid container not found');
-    return;
+// Method 3: Use window.onload as a fallback
+window.addEventListener('load', () => {
+  console.log('Window load event triggered');
+  // Check if we've already started initialization
+  const pcApp = document.querySelector('pc-app');
+  if (pcApp && !pcApp._hasInitializedApp) {
+    console.log('Initializing from window.onload fallback');
+    pcApp._hasInitializedApp = true;
+    initApplication();
   }
-  const root = createRoot(gridContainer);
-  
-  // Just render the grid with minimal props
-  root.render(
-    React.createElement(LatentGrid, {
-      gridSize: 3,
-      cellPx: 60,  // small size to fit in 200px sidebar
-      cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
-      onLatentChange: (row, col) => {
-        // Convert row,col to model name (a0 through c2)
-        const modelLetter = String.fromCharCode(97 + row); // 97 = 'a'
-        const modelPath = `compressed_head_models/model_${modelLetter}${col}`;
-        window.switchModel(modelPath);
-      },
-    })
-  );
 });
