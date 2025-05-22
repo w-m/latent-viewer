@@ -50,6 +50,41 @@ window.switchModel = async (dir: string): Promise<void> => {
 // Global initialization flag to prevent multiple initializations
 let hasInitialized = false;
 
+// ------------------------------------------------------------------
+// Loading indicator (pill in top-left corner)
+// ------------------------------------------------------------------
+
+let loadingDiv: HTMLDivElement | null = null;
+
+function createLoadingIndicator(container: HTMLElement) {
+  if (loadingDiv) return;
+  loadingDiv = document.createElement('div');
+  loadingDiv.textContent = 'Loading model...';
+  Object.assign(loadingDiv.style, {
+    position: 'absolute',
+    top: '12px',
+    left: '12px',
+    padding: '4px 12px',
+    background: 'rgba(0,0,0,0.6)',
+    color: '#fff',
+    fontFamily: 'system-ui, sans-serif',
+    fontSize: '13px',
+    borderRadius: '9999px',
+    pointerEvents: 'none',
+    userSelect: 'none',
+    zIndex: '1000',
+    backdropFilter: 'blur(2px)',
+    display: 'none',
+  } as CSSStyleDeclaration);
+  container.style.position = container.style.position || 'relative';
+  container.appendChild(loadingDiv);
+}
+
+function setLoadingIndicator(visible: boolean) {
+  if (!loadingDiv) return;
+  loadingDiv.style.display = visible ? 'block' : 'none';
+}
+
 /**
  * Main application initialization function with cross-browser compatibility
  */
@@ -79,7 +114,11 @@ function initApplication(): void {
       pc.registerScript(XrControllers, 'xrControllers');
       pc.registerScript(XrNavigation, 'xrNavigation');
 
-      // --- dynamic GSplat loader with LRU cache
+      // Create loading indicator inside the right-hand pane (pc-app's parent)
+      const parent = (pcApp as HTMLElement).parentElement ?? document.body;
+      createLoadingIndicator(parent);
+
+      // --- dynamic GSplat loader
       initDynamicLoader(pcApp as any); // TypeScript doesn't know about custom element types
     },
     { once: true }
@@ -171,6 +210,7 @@ function initDynamicLoader(pcApp: any): void {
     }
 
     loading = true;
+    setLoadingIndicator(true);
 
     console.log(`Switching to model: ${dir}`);
 
@@ -259,6 +299,7 @@ function initDynamicLoader(pcApp: any): void {
 
         // Mark loading done and process any queued request.
         loading = false;
+        if (!nextDir) setLoadingIndicator(false);
         if (nextDir) {
           const q = nextDir;
           nextDir = null;
@@ -270,6 +311,7 @@ function initDynamicLoader(pcApp: any): void {
       nextEnt.destroy();
       destroyAsset(asset);
       loading = false;
+      if (!nextDir) setLoadingIndicator(false);
       if (nextDir) {
         const q = nextDir;
         nextDir = null;
