@@ -85,3 +85,38 @@ Key understandings
 	3.	Gaussian-Splat support lives in the engine core; just set type="gsplat" on <pc-asset>.
 	4.	Only one camera helper (camera-controls.mjs) is needed—its internal listeners cover desktop & touch.
 	5.	Using a bundler lets us keep helper scripts in node_modules, avoid custom import-maps, and get automatic tree-shaking/minification.
+
+--------------------------------------------------------------------
+2024-05 Loader & Latent-Grid improvements
+--------------------------------------------------------------------
+
+Problem addressed: Rapid scrubbing across a latent grid triggered many
+overlapping loads → flicker, duplicates, memory spikes.
+
+Solution summary (all in `public/main.ts`):
+
+• **Debounce (180 ms)** – only the cell the pointer *ends* on starts a load.
+
+• **Token-based cancellation** – `currentToken` increments per request.
+  Any async stage compares `myToken !== currentToken` to self-abort when a
+  newer request arrives. Guarantees no callbacks from stale loads.
+
+• **Live + Pending entity pair** – the scene contains at most two
+  `pc.Entity`s: the visible `liveEnt` and a `pendingEnt` that is loading. If
+  a new request begins while another is still pending, that older pending
+  entity/asset is destroyed immediately.
+
+• **Sorter barrier** – waits for
+  `gsplat.instance.sorter.once('updated')` before considering the pending
+  model *ready*.
+
+• **Frame-end swap** – the old model is destroyed on the first
+  `app.on('frameend')` following the sorter event. This keeps a model on
+  screen 100 % of the time, eliminating the blank-frame flash.
+
+• **On-demand renderers** – calls `app.renderNextFrame?.()` right after the
+  swap so Safari (which sometimes stops the render loop) immediately draws
+  the updated scene.
+
+The combination yields tear-free scrubbing on Chrome, Safari and Firefox while
+never keeping more than two full GSplat datasets in memory/GPU.

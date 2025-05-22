@@ -56,6 +56,12 @@ latent-viewer/
 ├── package.json       # Dependencies & scripts
 ├── vite.config.js     # Vite zero-config with custom root/outDir
 └── README.md          # You are here
+
+### Demo pages
+
+* **`/index.html`** – full viewer: latent grid + PlayCanvas canvas.
+* **`/grid-demo.html`** – standalone latent-grid demo used during early
+  prototyping.
 ```
 
 
@@ -136,20 +142,56 @@ npm run preview    # Serves the ./dist folder
 
 ### How Model Switching Works
 
-The model switching logic in `public/main.ts` uses the following approach:
+The **2024-05** rewrite introduced a robust, cross-browser loader that keeps
+scrubbing fluid while guaranteeing zero flicker and *at most two* GSplat
+entities in the scene:
 
-1. When switching models, a new entity is created and added to the scene
-2. The asset is loaded and assigned to the new entity
-3. The implementation listens for the `sorter.updated` event to know when the model is fully rendered
-4. Once rendered, the old model is removed and the new one takes its place
+1. **Debounced requests** – the latent-space grid calls `switchModel()` via a
+   180 ms trailing-edge debounce so only the cell you *end up on* actually
+   initiates a load.
 
-This approach eliminates flickering by ensuring the new model is fully ready before removing the old one.
+2. **Token-based cancellation** – every call increments `currentToken`.  All
+   asynchronous awaits (download → GPU upload → first draw) compare their
+   captured token against the global one and self-abort if superseded.  This
+   avoids race conditions that previously left duplicates on screen.
+
+3. **Live + pending entities** – the application keeps exactly two
+   `pc.Entity` instances:
+   • `liveEnt` – currently visible model.
+   • `pendingEnt` – the one that is loading / uploading.
+   Any older pending entity is destroyed immediately when a newer request
+   arrives, capping memory & GPU usage.
+
+4. **Sorter barrier** – the loader waits for
+   `gsplat.instance.sorter.once('updated')`, which fires after PlayCanvas has
+   generated draw-call layer lists for the new splat.
+
+5. **Frame-end swap** – the old model is destroyed on the first `app.on('frameend')`
+   following the sorter event, so there is always at least one model visible.
+
+6. **On-demand renderers** – after removal we call
+   `app.renderNextFrame?.()` to force an extra frame, ensuring Safari (which
+   sometimes pauses rendering when nothing moves) immediately shows the new
+   scene.
+
+With this pipeline *Chrome, Safari and Firefox* now all scrub smoothly – no
+flash of empty background, no lingering duplicates.
 
 ---
 
 ## Interactive Latent Grid
 
-This project includes an interactive latent grid component (`LatentGrid.tsx`) that provides a user interface for switching between different 3D Gaussian Splat models. The grid allows users to intuitively visualize and interact with the latent space of the models.
+This project includes an interactive latent grid component (`LatentGrid.tsx`)
+that provides a miniature *latent-space map* for switching between Gaussian
+Splat models.  Users simply drag the handle across the grid; the viewer swaps
+to the model located at that cell.
+
+Runtime characteristics:
+
+* Emits a *single* debounced load request once the handle settles (≈180 ms).
+* Zero allocations on the hot `pointermove` path → stable 60 fps even on
+  mobile.
+* Works with mouse, touch and stylus out of the box via `react-konva`.
 
 ### Model Structure
 
