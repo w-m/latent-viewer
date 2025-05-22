@@ -33,15 +33,34 @@ export const LatentGrid: React.FC<Props> = ({
   const cellHeight = totalHeight / gridSize;
   const stageRef = useRef<Konva.Stage>(null);
   
-  // Initial position at center of grid
-  const initialRow = Math.floor(gridSize / 2);
-  const initialCol = Math.floor(gridSize / 2);
+  // Choose a random initial cell ensuring the drag indicator remains fully
+  // visible (avoid the outermost cells so the 32-px diameter circle never
+  // touches the border).  If the grid is smaller than 3×3 fall back to the
+  // center cell.
+  const safeMin = 1;
+  const safeMax = gridSize - 2;
+
+  const initialRow = gridSize > 2
+    ? safeMin + Math.floor(Math.random() * (safeMax - safeMin + 1))
+    : Math.floor(gridSize / 2);
+
+  const initialCol = gridSize > 2
+    ? safeMin + Math.floor(Math.random() * (safeMax - safeMin + 1))
+    : Math.floor(gridSize / 2);
   const initialX = (initialCol + 0.5) * cellWidth;
   const initialY = (initialRow + 0.5) * cellHeight;
   
   const [active, setActive] = useState<[number, number]>([initialRow, initialCol]);
   const [indicatorPos, setIndicatorPos] = useState({ x: initialX, y: initialY });
   const isDragging = useRef(false);
+
+  // Notify parent of the initially selected cell as soon as the component
+  // mounts so the corresponding model can be loaded.
+  useEffect(() => {
+    onLatentChange(initialRow, initialCol, indicatorPos.x / totalWidth, indicatorPos.y / totalHeight);
+    // We intentionally exclude dependencies to run exactly once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeRectRef = useRef<Konva.Rect>(null);
 

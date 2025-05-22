@@ -8,6 +8,7 @@ declare global {
   interface Window {
     pc: typeof pc;
     switchModel: (dir: string) => Promise<void>;
+    _pendingSwitchModelDir?: string | null;
   }
 }
 window.pc = pc;
@@ -43,8 +44,12 @@ interface GSplatEntity extends pc.Entity {
 }
 
 // Initial placeholder implementation
+window._pendingSwitchModelDir = null;
+
+// Placeholder – stores the requested directory until the real implementation
+// becomes available (after the PlayCanvas application is ready).
 window.switchModel = async (dir: string): Promise<void> => {
-  // Placeholder - will be replaced with actual implementation
+  window._pendingSwitchModelDir = dir;
 };
 
 // Global initialization flag to prevent multiple initializations
@@ -363,9 +368,16 @@ function initDynamicLoader(pcApp: any): void {
 
   // Expose to grid
   window.switchModel = switchModel;
-  
-  // Load initial model
-  switchModel('compressed_head_models_512_10x10/model_c04_r04');
+
+  // If a model was requested before the loader was ready, load it now.
+  if (window._pendingSwitchModelDir) {
+    const dir = window._pendingSwitchModelDir;
+    window._pendingSwitchModelDir = null;
+    switchModel(dir);
+  }
+
+  // The initial model is now selected by the LatentGrid component, which
+  // invokes `switchModel` once upon mounting with a randomly chosen cell.
 }
 
 // ------------------------------------------------------------------
