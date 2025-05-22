@@ -9,7 +9,8 @@ if (!rootElem) throw new Error('#app not found');
 createRoot(rootElem).render(
   <LatentGrid
     gridSize={3}
-    cellPx={120}
-    onCellEnter={(r, c) => console.log(`cell enter: (${r}, ${c})`)}
+    totalWidth={360}
+    totalHeight={360}
+    onLatentChange={(r, c) => console.log(`cell enter: (${r}, ${c})`)}
   />
 );
