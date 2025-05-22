@@ -26,14 +26,35 @@ import { LatentGrid } from './LatentGrid';
 // Utility: small debounce implementation (trailing-edge only)
 // ------------------------------------------------------------
 
-function debounce<F extends (...args: any[]) => void>(fn: F, delay = 150) {
+// leading + trailing throttle: first call executes immediately, subsequent
+// calls within `interval` are collapsed and only the *last* one is executed at
+// the end of the window.
+function throttleLatest<F extends (...args: any[]) => void>(
+  fn: F,
+  interval = 150
+) {
+  let lastArgs: Parameters<F> | null = null;
+  let inCooldown = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+
   return (...args: Parameters<F>) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      timer = undefined;
+    if (!inCooldown) {
+      // Leading edge: run immediately
       fn(...args);
-    }, delay);
+      inCooldown = true;
+
+      timer = setTimeout(() => {
+        inCooldown = false;
+        if (lastArgs) {
+          const callArgs = lastArgs;
+          lastArgs = null;
+          fn(...callArgs);
+        }
+      }, interval);
+    } else {
+      // Within the interval – remember latest args
+      lastArgs = args;
+    }
   };
 }
 
@@ -105,9 +126,10 @@ function initializeReactGrid(): void {
   
   try {
     const root = createRoot(gridContainer);
-    // Wrap the expensive model switch call in a small trailing-edge debounce so
-    // rapid pointer movement only triggers the *last* model load.
-    const queuedSwitch = debounce((row: number, col: number) => {
+    // Throttle so the *first* cell starts loading instantly, then collapse
+    // further pointer moves for 150 ms; finally load the last cell if the
+    // pointer settled somewhere else.
+    const queuedSwitch = throttleLatest((row: number, col: number) => {
       const modelPath = `compressed_head_models_512_10x10/model_c${col
         .toString()
         .padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
