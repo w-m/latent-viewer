@@ -141,6 +141,9 @@ function initDynamicLoader(pcApp: any): void {
   let liveEnt: GSplatEntity = makeViewer();
   let pendingEnt: GSplatEntity | null = null;
 
+  // Monotonically increasing token identifying the most recent switchModel() call.
+  let currentToken = 0;
+
   app.root.addChild(liveEnt);
 
   /**
@@ -168,82 +171,93 @@ function initDynamicLoader(pcApp: any): void {
    */
   async function switchModel(dir: string): Promise<void> {
     console.log(`Switching to model: ${dir}`);
-    
-    // If a previous pendingEnt still exists, evict it now
+
+    // Increment the token that identifies the most-recent request. Any earlier
+    // async chains still running will exit once they notice their token is
+    // stale.
+    const myToken = ++currentToken;
+
+    // Ensure we never have more than two GSplat entities (live + newest
+    // pending). If something is already loading, discard it right away.
     if (pendingEnt) {
-      app.root.removeChild(pendingEnt);
-      destroyAsset(pendingEnt.gsplat.asset as pc.Asset | null);
+      const oldAsset = pendingEnt.gsplat?.asset as pc.Asset | null;
+      pendingEnt.destroy();
+      destroyAsset(oldAsset);
       pendingEnt = null;
     }
 
-    // Build new asset + entity
+    // ---- Build asset & entity ------------------------------------------------
     const url = new URL(`${dir}/meta.json`, document.baseURI).href;
     const asset = new pc.Asset(`gsplat-${dir}`, 'gsplat', { url });
     app.assets.add(asset);
 
     const nextEnt = makeViewer();
     app.root.addChild(nextEnt);
+    pendingEnt = nextEnt;
 
     try {
-      // Wait until JSON + buffers in RAM
+      // 1. Download / decode JSON + buffers -----------------------------
       await new Promise<void>((resolve, reject) => {
-        asset.once('load', () => {
-          console.log(`Asset loaded: ${dir}`);
-          resolve();
-        });
-        asset.once('error', (err) => {
-          console.error(`Asset loading error: ${dir}`, err);
-          reject(err);
-        });
+        asset.once('load', resolve);
+        asset.once('error', reject);
         app.assets.load(asset);
       });
 
-      // Set the asset to start GPU upload
+      if (myToken !== currentToken) {
+        // Superseded
+        nextEnt.destroy();
+        destroyAsset(asset);
+        return;
+      }
+
+      // 2. Kick off GPU upload -----------------------------------------
       nextEnt.gsplat.asset = asset;
-      console.log(`Asset assigned to entity, waiting for renderer: ${dir}`);
-      
-      // Wait for the sorter to update - a single update means the model is rendered
-      await new Promise<void>(resolve => {
+
+      // 3. Wait for first sorter update (splat renderer ready) ----------
+      await new Promise<void>((resolve) => {
         const maxRetries = 5;
-        let retries = 0;
-        
-        const tryAttachSorterListener = () => {
+        let tries = 0;
+        const attach = () => {
           if (nextEnt.gsplat.instance?.sorter) {
-            console.log(`Found sorter, attaching event listener: ${dir}`);
-            nextEnt.gsplat.instance.sorter.once('updated', () => {
-              console.log(`Sorter updated event received: ${dir}`);
-              resolve();
-            });
+            nextEnt.gsplat.instance.sorter.once('updated', resolve);
+          } else if (++tries < maxRetries) {
+            setTimeout(attach, 50 * tries);
           } else {
-            retries++;
-            if (retries < maxRetries) {
-              console.log(`Sorter not found, retry ${retries}/${maxRetries} for: ${dir}`);
-              setTimeout(tryAttachSorterListener, 50 * retries); // Increasing backoff
-            } else {
-              // Fallback if sorter is not available after retries
-              console.warn(`GSplat sorter not found after ${maxRetries} retries for ${dir}, using fallback`);
-              setTimeout(resolve, 300);
-            }
+            // Give it a bit more time as a fallback
+            setTimeout(resolve, 300);
           }
         };
-        
-        // Start the retry process
-        setTimeout(tryAttachSorterListener, 20);
+        attach();
       });
-      
-      // Now that new model is rendered, remove the old one
-      if (liveEnt !== nextEnt) {
-        console.log(`Removing old model, switching to: ${dir}`);
-        app.root.removeChild(liveEnt);
-        destroyAsset(liveEnt.gsplat.asset as pc.Asset | null);
+
+      if (myToken !== currentToken) {
+        nextEnt.destroy();
+        destroyAsset(asset);
+        return;
       }
-      
-      // Promote new entity to live
-      liveEnt = nextEnt;
-      console.log(`Model switch complete: ${dir}`);
+
+      // 4. Keep both models for the first rendered frame, then retire old
+      app.once('frameend', () => {
+        if (myToken !== currentToken) return; // superseded in the meantime
+
+        if (liveEnt && liveEnt !== nextEnt) {
+          const liveAsset = liveEnt.gsplat?.asset as pc.Asset | null;
+          liveEnt.destroy();
+          destroyAsset(liveAsset);
+        }
+
+        liveEnt = nextEnt;
+        pendingEnt = null;
+
+        // For on-demand renderers request another frame so the removal is
+        // visible without user interaction.
+        if (typeof (app as any).renderNextFrame === 'function') {
+          (app as any).renderNextFrame();
+        }
+      });
     } catch (err) {
       console.error(`Failed to load ${dir}`, err);
-      app.root.removeChild(nextEnt);
+      nextEnt.destroy();
       destroyAsset(asset);
     }
   }
