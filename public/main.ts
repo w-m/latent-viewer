@@ -26,37 +26,9 @@ import { LatentGrid } from './LatentGrid';
 // Utility: small debounce implementation (trailing-edge only)
 // ------------------------------------------------------------
 
-// leading + trailing throttle: first call executes immediately, subsequent
-// calls within `interval` are collapsed and only the *last* one is executed at
-// the end of the window.
-function throttleLatest<F extends (...args: any[]) => void>(
-  fn: F,
-  interval = 150
-) {
-  let lastArgs: Parameters<F> | null = null;
-  let inCooldown = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  return (...args: Parameters<F>) => {
-    if (!inCooldown) {
-      // Leading edge: run immediately
-      fn(...args);
-      inCooldown = true;
-
-      timer = setTimeout(() => {
-        inCooldown = false;
-        if (lastArgs) {
-          const callArgs = lastArgs;
-          lastArgs = null;
-          fn(...callArgs);
-        }
-      }, interval);
-    } else {
-      // Within the interval – remember latest args
-      lastArgs = args;
-    }
-  };
-}
+// ---------------------------------------------------------------------------
+// No global debounce anymore – dynamic gating is handled inside switchModel.
+// ---------------------------------------------------------------------------
 
 // Define interfaces for better type safety
 interface GSplatEntity extends pc.Entity {
@@ -126,17 +98,6 @@ function initializeReactGrid(): void {
   
   try {
     const root = createRoot(gridContainer);
-    // Throttle so the *first* cell starts loading instantly, then collapse
-    // further pointer moves for 150 ms; finally load the last cell if the
-    // pointer settled somewhere else.
-    const queuedSwitch = throttleLatest((row: number, col: number) => {
-      const modelPath = `compressed_head_models_512_10x10/model_c${col
-        .toString()
-        .padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
-      console.log(`Debounced switch to model: ${modelPath}`);
-      window.switchModel(modelPath);
-    }, 180); // ~6 fps – feels instant yet filters frantic scrubs
-
     root.render(
       React.createElement(LatentGrid, {
         gridSize: 10,
@@ -145,7 +106,10 @@ function initializeReactGrid(): void {
         indicatorOpacity: 0.7,
         cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
         onLatentChange: (row: number, col: number) => {
-          queuedSwitch(row, col);
+          const modelPath = `compressed_head_models_512_10x10/model_c${col
+            .toString()
+            .padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
+          window.switchModel(modelPath);
         },
       })
     );
@@ -165,6 +129,11 @@ function initDynamicLoader(pcApp: any): void {
 
   // Monotonically increasing token identifying the most recent switchModel() call.
   let currentToken = 0;
+
+  // Dynamic gating – true while a model is downloading / uploading / waiting
+  // for its first frame.  Subsequent requests are queued in nextDir.
+  let loading = false;
+  let nextDir: string | null = null;
 
   app.root.addChild(liveEnt);
 
@@ -192,6 +161,17 @@ function initDynamicLoader(pcApp: any): void {
    * @param dir - Directory containing the model
    */
   async function switchModel(dir: string): Promise<void> {
+    // If already processing a load, just remember the latest requested dir and
+    // return.  When the current load completes we'll immediately start this
+    // queued request.  This provides *instant* first-load behaviour and
+    // throttles only while a model is in-flight.
+    if (loading) {
+      nextDir = dir;
+      return;
+    }
+
+    loading = true;
+
     console.log(`Switching to model: ${dir}`);
 
     // Increment the token that identifies the most-recent request. Any earlier
@@ -276,11 +256,25 @@ function initDynamicLoader(pcApp: any): void {
         if (typeof (app as any).renderNextFrame === 'function') {
           (app as any).renderNextFrame();
         }
+
+        // Mark loading done and process any queued request.
+        loading = false;
+        if (nextDir) {
+          const q = nextDir;
+          nextDir = null;
+          switchModel(q);
+        }
       });
     } catch (err) {
       console.error(`Failed to load ${dir}`, err);
       nextEnt.destroy();
       destroyAsset(asset);
+      loading = false;
+      if (nextDir) {
+        const q = nextDir;
+        nextDir = null;
+        switchModel(q);
+      }
     }
   }
 
