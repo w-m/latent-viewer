@@ -92,12 +92,12 @@ function initializeReactGrid(): void {
     const root = createRoot(gridContainer);
     root.render(
       React.createElement(LatentGrid, {
-        gridSize: 3,
-        cellPx: 60,
+        gridSize: 10,
+        cellPx: 15,
         cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
         onLatentChange: (row: number, col: number) => {
-          const modelLetter = String.fromCharCode(97 + row); // 97 = 'a'
-          const modelPath = `compressed_head_models/model_${modelLetter}${col}`;
+          const modelPath = `compressed_head_models_512_10x10/model_c${col.toString().padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
+          console.log(`Switching model to: ${modelPath}`);
           window.switchModel(modelPath);
         },
       })
@@ -227,7 +227,7 @@ function initDynamicLoader(pcApp: any): void {
   window.switchModel = switchModel;
   
   // Load initial model
-  switchModel('compressed_head_models/model_b1');
+  switchModel('compressed_head_models_512_10x10/model_c04_r04');
 }
 
 // ------------------------------------------------------------------

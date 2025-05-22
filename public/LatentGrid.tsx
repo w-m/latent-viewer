@@ -17,7 +17,7 @@ interface Props {
  * new object allocations inside the handler.
  */
 export const LatentGrid: React.FC<Props> = ({
-  gridSize = 3,
+  gridSize = 10,
   cellPx = 120,
   cornerColors = ['#FF5733', '#33FF57', '#3357FF', '#F033FF'], // default colors for corners
   onCellEnter = () => {},
