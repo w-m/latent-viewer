@@ -54,6 +54,10 @@ export const LatentGrid: React.FC<Props> = ({
   const [indicatorPos, setIndicatorPos] = useState({ x: initialX, y: initialY });
   const isDragging = useRef(false);
 
+  // Track whether the user has interacted with the handle.
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const handleGroupRef = useRef<Konva.Group>(null);
+
   // Notify parent of the initially selected cell as soon as the component
   // mounts so the corresponding model can be loaded.
   useEffect(() => {
@@ -90,6 +94,32 @@ export const LatentGrid: React.FC<Props> = ({
     };
   }, [isLoading, active]);
 
+  useEffect(() => {
+    if (hasInteracted) return;
+
+    const grp = handleGroupRef.current;
+    if (!grp) return;
+
+    const layer = grp.getLayer();
+    if (!layer) return;
+
+    const anim = new Konva.Animation((frame) => {
+      const t = frame?.time ?? 0;
+      const scale = 1 + 0.1 * Math.sin(t / 250);
+      grp.scale({ x: scale, y: scale });
+      grp.opacity(0.8 + 0.2 * Math.sin(t / 250));
+    }, layer);
+
+    anim.start();
+
+    // Cleanup when the animation stops (first interaction or unmount).
+    return () => {
+      anim.stop();
+      grp.scale({ x: 1, y: 1 });
+      grp.opacity(indicatorOpacity);
+    };
+  }, [hasInteracted, indicatorOpacity]);
+
   // Convert stage coordinates → cell indices (row, col).  Returns the same
   // tuple instance to avoid allocations.
   const cell = [0, 0] as [number, number];
@@ -111,6 +141,9 @@ export const LatentGrid: React.FC<Props> = ({
 
   const handleDragStart = () => {
     isDragging.current = true;
+    if (!hasInteracted) {
+      setHasInteracted(true);
+    }
   };
 
   const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -122,6 +155,9 @@ export const LatentGrid: React.FC<Props> = ({
     // Force the position to stay within bounds
     e.target.position({ x, y });
     setIndicatorPos({ x, y });
+    if (!hasInteracted) {
+      setHasInteracted(true);
+    }
   };
 
   const handleDragEnd = () => {
@@ -211,13 +247,14 @@ export const LatentGrid: React.FC<Props> = ({
       {/* Draggable circle indicator */}
       <Layer>
         <Group
+          ref={handleGroupRef}
           x={indicatorPos.x}
           y={indicatorPos.y}
           draggable
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
-          opacity={indicatorOpacity} // Apply opacity here
+          opacity={indicatorOpacity}
         >
           <Circle
             radius={16}
