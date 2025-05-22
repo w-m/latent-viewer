@@ -57,6 +57,7 @@ export const LatentGrid: React.FC<Props> = ({
   // Track whether the user has interacted with the handle.
   const [hasInteracted, setHasInteracted] = useState(false);
   const handleGroupRef = useRef<Konva.Group>(null);
+  const circleRef = useRef<Konva.Circle>(null);
 
   // Notify parent of the initially selected cell as soon as the component
   // mounts so the corresponding model can be loaded.
@@ -66,33 +67,8 @@ export const LatentGrid: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const activeRectRef = useRef<Konva.Rect>(null);
 
-  // Pulsating animation while loading
-  useEffect(() => {
-    const rect = activeRectRef.current;
-    if (!rect) return;
-
-    let anim: Konva.Animation | null = null;
-    if (isLoading) {
-      const layer = rect.getLayer();
-      if (layer) {
-        anim = new Konva.Animation((frame) => {
-          const t = frame?.time ?? 0;
-          const opacity = 0.5 + 0.5 * Math.sin(t / 300);
-          rect.opacity(opacity);
-        }, layer);
-        anim.start();
-      }
-    } else {
-      // Ensure opacity reset
-      rect.opacity(1);
-    }
-
-    return () => {
-      if (anim) anim.stop();
-    };
-  }, [isLoading, active]);
+  // Remove cell glow animation (obsolete)
 
   useEffect(() => {
     if (hasInteracted) return;
@@ -119,6 +95,40 @@ export const LatentGrid: React.FC<Props> = ({
       grp.opacity(indicatorOpacity);
     };
   }, [hasInteracted, indicatorOpacity]);
+
+  // Loading outline animation (dashed stroke rotating)
+  useEffect(() => {
+    const circle = circleRef.current;
+    if (!circle) return;
+
+    let anim: Konva.Animation | null = null;
+
+    if (isLoading) {
+      // Enable dashed stroke
+      circle.dash([6, 4]);
+      circle.dashEnabled(true);
+
+      const layer = circle.getLayer();
+      if (layer) {
+        anim = new Konva.Animation((frame) => {
+          const dt = frame?.timeDiff ?? 0;
+          // Dash offset increments producing rotation effect
+          const offset = circle.dashOffset();
+          circle.dashOffset(offset + dt * 0.1); // speed: 0.1 px per ms (~100 px/s)
+        }, layer);
+        anim.start();
+      }
+    } else {
+      // Disable dashed stroke
+      circle.dash([]);
+      circle.dashOffset(0);
+      circle.dashEnabled(false);
+    }
+
+    return () => {
+      if (anim) anim.stop();
+    };
+  }, [isLoading]);
 
   // Convert stage coordinates → cell indices (row, col).  Returns the same
   // tuple instance to avoid allocations.
@@ -227,22 +237,7 @@ export const LatentGrid: React.FC<Props> = ({
         />
       </Layer>
 
-      {/* Active cell glow */}
-      <Layer listening={false}>
-        <Rect
-          ref={activeRectRef}
-          x={active[1] * cellWidth}
-          y={active[0] * cellHeight}
-          width={cellWidth}
-          height={cellHeight}
-          stroke={isLoading ? '#ffa500' : '#009775'}
-          strokeWidth={4}
-          shadowBlur={6}
-          shadowColor={isLoading ? '#ffa500' : '#009775'}
-          shadowOpacity={0.6}
-          opacity={1}
-        />
-      </Layer>
+      {/* Active cell glow removed */}
 
       {/* Draggable circle indicator */}
       <Layer>
@@ -257,9 +252,11 @@ export const LatentGrid: React.FC<Props> = ({
           opacity={indicatorOpacity}
         >
           <Circle
+            ref={circleRef}
+            name="indicatorCore"
             radius={16}
             fill="#ffffff"
-            stroke="#009775"
+            stroke={isLoading ? '#ffa500' : '#009775'}
             strokeWidth={2}
             shadowColor="black"
             shadowBlur={4}
