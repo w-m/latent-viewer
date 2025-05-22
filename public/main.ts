@@ -22,6 +22,21 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LatentGrid } from './LatentGrid';
 
+// ------------------------------------------------------------
+// Utility: small debounce implementation (trailing-edge only)
+// ------------------------------------------------------------
+
+function debounce<F extends (...args: any[]) => void>(fn: F, delay = 150) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return (...args: Parameters<F>) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = undefined;
+      fn(...args);
+    }, delay);
+  };
+}
+
 // Define interfaces for better type safety
 interface GSplatEntity extends pc.Entity {
   gsplat: pc.GSplatComponent & {
@@ -90,17 +105,25 @@ function initializeReactGrid(): void {
   
   try {
     const root = createRoot(gridContainer);
+    // Wrap the expensive model switch call in a small trailing-edge debounce so
+    // rapid pointer movement only triggers the *last* model load.
+    const queuedSwitch = debounce((row: number, col: number) => {
+      const modelPath = `compressed_head_models_512_10x10/model_c${col
+        .toString()
+        .padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
+      console.log(`Debounced switch to model: ${modelPath}`);
+      window.switchModel(modelPath);
+    }, 180); // ~6 fps – feels instant yet filters frantic scrubs
+
     root.render(
       React.createElement(LatentGrid, {
-        gridSize: 10, // Keep 10x10 grid
-        totalWidth: 200, // Keep total size as is (assuming 120px * 10 cells)
-        totalHeight: 200, // Keep total size as is (assuming 120px * 10 cells)
-        indicatorOpacity: 0.7, // Example: Make indicator 70% opaque
+        gridSize: 10,
+        totalWidth: 200,
+        totalHeight: 200,
+        indicatorOpacity: 0.7,
         cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
         onLatentChange: (row: number, col: number) => {
-          const modelPath = `compressed_head_models_512_10x10/model_c${col.toString().padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
-          console.log(`Switching model to: ${modelPath}`);
-          window.switchModel(modelPath);
+          queuedSwitch(row, col);
         },
       })
     );
