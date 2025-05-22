@@ -151,14 +151,14 @@ function initializeReactGrid(): void {
     const renderGrid = () => {
       root.render(
         React.createElement(LatentGrid, {
-          gridSize: 10,
+          gridSize: 16,
           totalWidth: 200,
           totalHeight: 200,
           indicatorOpacity: 0.7,
           cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
           isLoading: gridLoading,
           onLatentChange: (row: number, col: number) => {
-            const modelPath = `compressed_head_models_512_10x10/model_c${col
+            const modelPath = `compressed_head_models_512_16x16/model_c${col
               .toString()
               .padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
             window.switchModel(modelPath);
