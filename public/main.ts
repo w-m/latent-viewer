@@ -127,6 +127,36 @@ function initApplication(): void {
       pc.registerScript(XrControllers, 'xrControllers');
       pc.registerScript(XrNavigation, 'xrNavigation');
 
+      // Access PlayCanvas application instance
+      const app = (pcApp as any).app as pc.Application;
+
+      // ------------------------------------------------------------
+      // Background color picker hookup
+      // ------------------------------------------------------------
+
+      const colorInput = document.getElementById('bgColorPicker') as HTMLInputElement | null;
+      if (colorInput) {
+        const applyColor = (hex: string) => {
+          // Converts #RRGGBB -> pc.Color
+          if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) return;
+          const clean = hex.startsWith('#') ? hex.substring(1) : hex;
+          const r = parseInt(clean.substring(0, 2), 16) / 255;
+          const g = parseInt(clean.substring(2, 4), 16) / 255;
+          const b = parseInt(clean.substring(4, 6), 16) / 255;
+          const camEnt = app.root.findByName('camera') as (pc.Entity & { camera?: pc.CameraComponent }) | null;
+          if (camEnt && camEnt.camera) {
+            camEnt.camera.clearColor.set(r, g, b, 1);
+          }
+        };
+
+        // Initial value
+        applyColor(colorInput.value);
+
+        colorInput.addEventListener('input', () => {
+          applyColor((colorInput as HTMLInputElement).value);
+        });
+      }
+
       // --- dynamic GSplat loader
       // Loading indicator is created in initializeReactGrid now.
       

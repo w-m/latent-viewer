@@ -50,6 +50,26 @@
       justify-content: center;
     }
 
+    /* Color picker */
+    .color-picker {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .color-picker-label {
+      color: #bbb;
+      font-size: 14px;
+      user-select: none;
+    }
+    #bgColorPicker {
+      border: none;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      background: none;
+    }
+
     .latent-grid-hint {
       color: #bbb;
       font-size: 14px;
@@ -106,6 +126,11 @@
         <div class="latent-grid-hint">Drag the handle to explore the latent space</div>
         <div class="grid-container">
           <div id="latentGrid"></div>
+        </div>
+        <!-- Background color picker -->
+        <div class="color-picker">
+          <label for="bgColorPicker" class="color-picker-label">Background color</label>
+          <input type="color" id="bgColorPicker" value="#222222" />
         </div>
       </div>
     </div>
