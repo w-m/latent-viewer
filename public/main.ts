@@ -55,15 +55,15 @@ let hasInitialized = false;
 // ------------------------------------------------------------------
 
 let loadingDiv: HTMLDivElement | null = null;
+// Timer identifier for delayed loading indicator
+let loadingIndicatorTimer: number | null = null;
 
 function createLoadingIndicator(container: HTMLElement) {
   if (loadingDiv) return;
   loadingDiv = document.createElement('div');
   loadingDiv.textContent = 'Loading model...';
   Object.assign(loadingDiv.style, {
-    position: 'absolute',
-    top: '12px',
-    left: '12px',
+    marginTop: '0px',
     padding: '4px 12px',
     background: 'rgba(0,0,0,0.6)',
     color: '#fff',
@@ -72,17 +72,15 @@ function createLoadingIndicator(container: HTMLElement) {
     borderRadius: '9999px',
     pointerEvents: 'none',
     userSelect: 'none',
-    zIndex: '1000',
     backdropFilter: 'blur(2px)',
-    display: 'none',
+    visibility: 'hidden', // reserve layout space while keeping it hidden
   } as CSSStyleDeclaration);
-  container.style.position = container.style.position || 'relative';
   container.appendChild(loadingDiv);
 }
 
 function setLoadingIndicator(visible: boolean) {
   if (!loadingDiv) return;
-  loadingDiv.style.display = visible ? 'block' : 'none';
+  loadingDiv.style.visibility = visible ? 'visible' : 'hidden';
 }
 
 /**
@@ -114,10 +112,9 @@ function initApplication(): void {
       pc.registerScript(XrControllers, 'xrControllers');
       pc.registerScript(XrNavigation, 'xrNavigation');
 
-      // Create loading indicator inside the right-hand pane (pc-app's parent)
-      const parent = (pcApp as HTMLElement).parentElement ?? document.body;
-      createLoadingIndicator(parent);
-
+      // --- dynamic GSplat loader
+      // Loading indicator is created in initializeReactGrid now.
+      
       // --- dynamic GSplat loader
       initDynamicLoader(pcApp as any); // TypeScript doesn't know about custom element types
     },
@@ -137,21 +134,41 @@ function initializeReactGrid(): void {
   
   try {
     const root = createRoot(gridContainer);
-    root.render(
-      React.createElement(LatentGrid, {
-        gridSize: 10,
-        totalWidth: 200,
-        totalHeight: 200,
-        indicatorOpacity: 0.7,
-        cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
-        onLatentChange: (row: number, col: number) => {
-          const modelPath = `compressed_head_models_512_10x10/model_c${col
-            .toString()
-            .padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
-          window.switchModel(modelPath);
-        },
-      })
-    );
+
+    // Ensure loading indicator exists under the grid (once)
+    const leftPane = gridContainer.closest('.left-pane') as HTMLElement | null;
+    if (leftPane) {
+      createLoadingIndicator(leftPane);
+    }
+
+    let gridLoading = false;
+
+    const renderGrid = () => {
+      root.render(
+        React.createElement(LatentGrid, {
+          gridSize: 10,
+          totalWidth: 200,
+          totalHeight: 200,
+          indicatorOpacity: 0.7,
+          cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
+          isLoading: gridLoading,
+          onLatentChange: (row: number, col: number) => {
+            const modelPath = `compressed_head_models_512_10x10/model_c${col
+              .toString()
+              .padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
+            window.switchModel(modelPath);
+          },
+        })
+      );
+    };
+
+    renderGrid();
+
+    // Expose setter so the loader can toggle loading state
+    (window as any).setGridLoading = (v: boolean) => {
+      gridLoading = v;
+      renderGrid();
+    };
   } catch (error) {
     console.error('Error rendering grid:', error);
   }
@@ -210,7 +227,17 @@ function initDynamicLoader(pcApp: any): void {
     }
 
     loading = true;
-    setLoadingIndicator(true);
+
+    // Show loading indicator only if loading persists beyond 200 ms to avoid
+    // flicker during instantaneous (cached) switches.
+    if (loadingIndicatorTimer !== null) {
+      clearTimeout(loadingIndicatorTimer);
+    }
+    loadingIndicatorTimer = window.setTimeout(() => {
+      setLoadingIndicator(true);
+      (window as any).setGridLoading?.(true);
+      loadingIndicatorTimer = null;
+    }, 200);
 
     console.log(`Switching to model: ${dir}`);
 
@@ -299,7 +326,14 @@ function initDynamicLoader(pcApp: any): void {
 
         // Mark loading done and process any queued request.
         loading = false;
-        if (!nextDir) setLoadingIndicator(false);
+        if (!nextDir) {
+          if (loadingIndicatorTimer !== null) {
+            clearTimeout(loadingIndicatorTimer);
+            loadingIndicatorTimer = null;
+          }
+          setLoadingIndicator(false);
+          (window as any).setGridLoading?.(false);
+        }
         if (nextDir) {
           const q = nextDir;
           nextDir = null;
@@ -311,7 +345,14 @@ function initDynamicLoader(pcApp: any): void {
       nextEnt.destroy();
       destroyAsset(asset);
       loading = false;
-      if (!nextDir) setLoadingIndicator(false);
+      if (!nextDir) {
+        if (loadingIndicatorTimer !== null) {
+          clearTimeout(loadingIndicatorTimer);
+          loadingIndicatorTimer = null;
+        }
+        setLoadingIndicator(false);
+        (window as any).setGridLoading?.(false);
+      }
       if (nextDir) {
         const q = nextDir;
         nextDir = null;

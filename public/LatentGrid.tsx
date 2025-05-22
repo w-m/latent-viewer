@@ -10,6 +10,7 @@ interface Props {
   cornerColors?: [string, string, string, string]; // colors for top-left, top-right, bottom-right, bottom-left corners
   onCellEnter?: (row: number, col: number) => void;
   onLatentChange?: (row: number, col: number, x: number, y: number) => void; // callback for when latent position changes
+  isLoading?: boolean;                      // highlight cell differently while loading
 }
 
 /**
@@ -25,7 +26,8 @@ export const LatentGrid: React.FC<Props> = ({
   indicatorOpacity = 1.0,
   cornerColors = ['#FF5733', '#33FF57', '#3357FF', '#F033FF'], // default colors for corners
   onCellEnter = () => {},
-  onLatentChange = () => {}
+  onLatentChange = () => {},
+  isLoading = false
 }) => {
   const cellWidth = totalWidth / gridSize;
   const cellHeight = totalHeight / gridSize;
@@ -40,6 +42,34 @@ export const LatentGrid: React.FC<Props> = ({
   const [active, setActive] = useState<[number, number]>([initialRow, initialCol]);
   const [indicatorPos, setIndicatorPos] = useState({ x: initialX, y: initialY });
   const isDragging = useRef(false);
+
+  const activeRectRef = useRef<Konva.Rect>(null);
+
+  // Pulsating animation while loading
+  useEffect(() => {
+    const rect = activeRectRef.current;
+    if (!rect) return;
+
+    let anim: Konva.Animation | null = null;
+    if (isLoading) {
+      const layer = rect.getLayer();
+      if (layer) {
+        anim = new Konva.Animation((frame) => {
+          const t = frame?.time ?? 0;
+          const opacity = 0.5 + 0.5 * Math.sin(t / 300);
+          rect.opacity(opacity);
+        }, layer);
+        anim.start();
+      }
+    } else {
+      // Ensure opacity reset
+      rect.opacity(1);
+    }
+
+    return () => {
+      if (anim) anim.stop();
+    };
+  }, [isLoading, active]);
 
   // Convert stage coordinates → cell indices (row, col).  Returns the same
   // tuple instance to avoid allocations.
@@ -145,15 +175,17 @@ export const LatentGrid: React.FC<Props> = ({
       {/* Active cell glow */}
       <Layer listening={false}>
         <Rect
+          ref={activeRectRef}
           x={active[1] * cellWidth}
           y={active[0] * cellHeight}
           width={cellWidth}
           height={cellHeight}
-          stroke="#009775"
+          stroke={isLoading ? '#ffa500' : '#009775'}
           strokeWidth={4}
           shadowBlur={6}
-          shadowColor="#009775"
+          shadowColor={isLoading ? '#ffa500' : '#009775'}
           shadowOpacity={0.6}
+          opacity={1}
         />
       </Layer>
 
