@@ -141,9 +141,9 @@ function initializeReactGrid(): void {
     const root = createRoot(gridContainer);
 
     // Ensure loading indicator exists under the grid (once)
-    const leftPane = gridContainer.closest('.left-pane') as HTMLElement | null;
-    if (leftPane) {
-      createLoadingIndicator(leftPane);
+    const section = gridContainer.closest('.latent-section') as HTMLElement | null;
+    if (section) {
+      createLoadingIndicator(section);
     }
 
     let gridLoading = false;
