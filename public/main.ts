@@ -92,8 +92,10 @@ function initializeReactGrid(): void {
     const root = createRoot(gridContainer);
     root.render(
       React.createElement(LatentGrid, {
-        gridSize: 10,
-        cellPx: 15,
+        gridSize: 10, // Keep 10x10 grid
+        totalWidth: 200, // Keep total size as is (assuming 120px * 10 cells)
+        totalHeight: 200, // Keep total size as is (assuming 120px * 10 cells)
+        indicatorOpacity: 0.7, // Example: Make indicator 70% opaque
         cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
         onLatentChange: (row: number, col: number) => {
           const modelPath = `compressed_head_models_512_10x10/model_c${col.toString().padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
