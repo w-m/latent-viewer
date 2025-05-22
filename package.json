@@ -2,6 +2,7 @@
   "name": "latent-viewer",
   "version": "1.0.0",
   "main": "index.js",
+  "sideEffects": false,
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
