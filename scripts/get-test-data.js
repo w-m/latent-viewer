@@ -31,20 +31,37 @@ function download(url, dest) {
 }
 
 async function run() {
+  const tasks = [];
+
   for (let r = 0; r < 16; r++) {
     for (let c = 0; c < 16; c++) {
       const dirName = `model_c${c.toString().padStart(2,'0')}_r${r.toString().padStart(2,'0')}`;
       const localDir = path.join(outRoot, dirName);
       fs.mkdirSync(localDir, { recursive: true });
+
       for (const f of files) {
         const url = `${baseUrl}/${dirName}/${f}`;
         const dest = path.join(localDir, f);
         if (fs.existsSync(dest)) continue;
-        console.log(`Downloading ${url}`);
-        await download(url, dest);
+        tasks.push(() => {
+          console.log(`Downloading ${url}`);
+          return download(url, dest);
+        });
       }
     }
   }
+
+  const concurrency = 8;
+  let index = 0;
+  const workers = Array.from({ length: concurrency }, async () => {
+    while (true) {
+      const i = index++;
+      if (i >= tasks.length) break;
+      await tasks[i]();
+    }
+  });
+
+  await Promise.all(workers);
   console.log('All files downloaded.');
 }
 

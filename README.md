@@ -44,7 +44,8 @@ npm run get-test-data
 ```
 
 This downloads all 256 folders (711.6&nbsp;MB) of compressed head models into
-`public/compressed_head_models_512_16x16/`.
+`public/compressed_head_models_512_16x16/`. The script fetches files in parallel
+to speed up the process.
 
 ### Requirements
 
