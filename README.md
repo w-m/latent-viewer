@@ -34,6 +34,19 @@ npm run build      # outputs to ./dist
 npm run preview    # serves the ./dist folder
 ```
 
+### Download test data (optional)
+
+To experiment with the latent grid using the models from the
+[CGS-GAN](https://fraunhoferhhi.github.io/cgs-gan/) paper, run:
+
+```bash
+npm run get-test-data
+```
+
+This downloads all 256 folders (711.6&nbsp;MB) of compressed head models into
+`public/compressed_head_models_512_16x16/`. The script fetches files in parallel
+to speed up the process.
+
 ### Requirements
 
 * **Node 18 LTS** or newer (uses modern `import`/`export`)
