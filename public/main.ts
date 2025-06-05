@@ -11,6 +11,7 @@ declare global {
     _pendingSwitchModelDir?: string | null;
     markCellCached?: (row: number, col: number) => void;
     setGridLoading?: (v: boolean) => void;
+    cancelBulkDownload?: () => void;
   }
 }
 window.pc = pc;
@@ -23,7 +24,8 @@ import { XrNavigation } from 'playcanvas/scripts/esm/xr-navigation.mjs';
 // 4) React components
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { LatentGrid } from './LatentGrid';
+import { LatentGrid, LatentGridHandle } from './LatentGrid';
+import { MODEL_SIZES, TOTAL_MODEL_BYTES } from '../src/model-sizes';
 
 // ------------------------------------------------------------
 // Utility: small debounce implementation (trailing-edge only)
@@ -54,6 +56,9 @@ window.switchModel = async (dir: string): Promise<void> => {
   window._pendingSwitchModelDir = dir;
 };
 
+// Keep a reference to the placeholder for readiness checks
+const placeholderSwitchModel = window.switchModel;
+
 function parseRowCol(dir: string): [number, number] | null {
   const m = /model_c(\d+)_r(\d+)/.exec(dir);
   if (!m) return null;
@@ -64,6 +69,45 @@ function parseRowCol(dir: string): [number, number] | null {
 
 // Global initialization flag to prevent multiple initializations
 let hasInitialized = false;
+
+// ------------------------------------------------------------
+// Bulk download state
+// ------------------------------------------------------------
+
+const gridSize = 16;
+let cachedBytes = 0;
+const countedCells = new Set<string>();
+let bulkAbort: { canceled: boolean } | null = null;
+let updateDownloadStatus: (() => void) | null = null;
+let programmaticMove = false;
+
+function modelPath(row: number, col: number): string {
+  return `compressed_head_models_512_16x16/model_c${col.toString().padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
+}
+
+function initCachedBytes() {
+  try {
+    const stored = localStorage.getItem('cachedCells');
+    if (stored) {
+      const arr = JSON.parse(stored);
+      if (Array.isArray(arr) && arr.length === gridSize) {
+        for (let r = 0; r < gridSize; r++) {
+          for (let c = 0; c < gridSize; c++) {
+            if (arr[r][c]) {
+              const p = modelPath(r, c);
+              cachedBytes += MODEL_SIZES[p] || 0;
+              countedCells.add(`${r},${c}`);
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+initCachedBytes();
 
 // ------------------------------------------------------------------
 // Loading indicator (pill in top-left corner)
@@ -176,6 +220,83 @@ function initializeReactGrid(): void {
     console.error('Grid container not found');
     return;
   }
+
+  const gridRef = React.createRef<LatentGridHandle>();
+
+  const downloadBtn = document.getElementById('downloadAllBtn') as HTMLButtonElement | null;
+  const statusDiv = document.getElementById('downloadStatus') as HTMLDivElement | null;
+
+  const updateStatus = () => {
+    if (!statusDiv) return;
+    const mb = (cachedBytes / (1024 * 1024)).toFixed(1);
+    const totalMb = (TOTAL_MODEL_BYTES / (1024 * 1024)).toFixed(1);
+    statusDiv.textContent = `${mb} MB / ${totalMb} MB`;
+  };
+
+  updateStatus();
+  updateDownloadStatus = updateStatus;
+
+  function cancelBulkDownload() {
+    if (bulkAbort && downloadBtn) {
+      bulkAbort.canceled = true;
+      downloadBtn.textContent = 'Download and cache all models';
+      programmaticMove = false;
+    }
+  }
+  window.cancelBulkDownload = cancelBulkDownload;
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', async () => {
+      if (bulkAbort) {
+        bulkAbort.canceled = true;
+        bulkAbort = null;
+        downloadBtn.textContent = 'Download and cache all models';
+        return;
+      }
+
+      // Wait for the real switchModel implementation
+      if (window.switchModel === placeholderSwitchModel) {
+        await new Promise<void>((resolve) => {
+          const id = setInterval(() => {
+            if (window.switchModel !== placeholderSwitchModel) {
+              clearInterval(id);
+              resolve();
+            }
+          }, 50);
+        });
+      }
+
+      bulkAbort = { canceled: false };
+      downloadBtn.textContent = 'Cancel download';
+
+      let cells: boolean[][] = [];
+      try {
+        const stored = localStorage.getItem('cachedCells');
+        if (stored) cells = JSON.parse(stored);
+      } catch {
+        cells = [];
+      }
+
+      for (let r = 0; r < gridSize; r++) {
+        for (let c = 0; c < gridSize; c++) {
+          if (bulkAbort.canceled) break;
+          if (cells[r]?.[c]) continue;
+          programmaticMove = true;
+          gridRef.current?.setActiveCell(r, c);
+          await window.switchModel(modelPath(r, c));
+          programmaticMove = false;
+          if (bulkAbort.canceled) break;
+          if (!cells[r]) cells[r] = [] as any;
+          cells[r][c] = true;
+        }
+        if (bulkAbort.canceled) break;
+      }
+
+      downloadBtn.textContent = 'Download and cache all models';
+      bulkAbort = null;
+      programmaticMove = false;
+    });
+  }
   
   try {
     const root = createRoot(gridContainer);
@@ -191,6 +312,7 @@ function initializeReactGrid(): void {
     const renderGrid = () => {
       root.render(
         React.createElement(LatentGrid, {
+          ref: gridRef,
           gridSize: 16,
           totalWidth: 200,
           totalHeight: 200,
@@ -198,10 +320,10 @@ function initializeReactGrid(): void {
           cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
           isLoading: gridLoading,
           onLatentChange: (row: number, col: number) => {
-            const modelPath = `compressed_head_models_512_16x16/model_c${col
-              .toString()
-              .padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
-            window.switchModel(modelPath);
+            if (programmaticMove) return;
+            window.cancelBulkDownload?.();
+            const path = modelPath(row, col);
+            window.switchModel(path);
           },
         })
       );
@@ -366,6 +488,13 @@ function initDynamicLoader(pcApp: any): void {
         const rc = parseRowCol(dir);
         if (rc) {
           (window as any).markCellCached?.(rc[0], rc[1]);
+          const key = `${rc[0]},${rc[1]}`;
+          if (!countedCells.has(key)) {
+            const p = modelPath(rc[0], rc[1]);
+            cachedBytes += MODEL_SIZES[p] || 0;
+            countedCells.add(key);
+            updateDownloadStatus?.();
+          }
         }
 
         // For on-demand renderers request another frame so the removal is
