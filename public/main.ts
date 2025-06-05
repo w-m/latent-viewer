@@ -9,6 +9,8 @@ declare global {
     pc: typeof pc;
     switchModel: (dir: string) => Promise<void>;
     _pendingSwitchModelDir?: string | null;
+    markCellCached?: (row: number, col: number) => void;
+    setGridLoading?: (v: boolean) => void;
   }
 }
 window.pc = pc;
@@ -51,6 +53,14 @@ window._pendingSwitchModelDir = null;
 window.switchModel = async (dir: string): Promise<void> => {
   window._pendingSwitchModelDir = dir;
 };
+
+function parseRowCol(dir: string): [number, number] | null {
+  const m = /model_c(\d+)_r(\d+)/.exec(dir);
+  if (!m) return null;
+  const col = parseInt(m[1], 10);
+  const row = parseInt(m[2], 10);
+  return [row, col];
+}
 
 // Global initialization flag to prevent multiple initializations
 let hasInitialized = false;
@@ -322,6 +332,11 @@ function initDynamicLoader(pcApp: any): void {
 
         liveEnt = nextEnt;
         pendingEnt = null;
+
+        const rc = parseRowCol(dir);
+        if (rc) {
+          (window as any).markCellCached?.(rc[0], rc[1]);
+        }
 
         // For on-demand renderers request another frame so the removal is
         // visible without user interaction.
