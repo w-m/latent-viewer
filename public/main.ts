@@ -24,7 +24,7 @@ import { XrNavigation } from 'playcanvas/scripts/esm/xr-navigation.mjs';
 // 4) React components
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { LatentGrid } from './LatentGrid';
+import { LatentGrid, LatentGridHandle } from './LatentGrid';
 import { MODEL_SIZES, TOTAL_MODEL_BYTES } from '../src/model-sizes';
 
 // ------------------------------------------------------------
@@ -76,8 +76,10 @@ let hasInitialized = false;
 
 const gridSize = 16;
 let cachedBytes = 0;
+const countedCells = new Set<string>();
 let bulkAbort: { canceled: boolean } | null = null;
 let updateDownloadStatus: (() => void) | null = null;
+let programmaticMove = false;
 
 function modelPath(row: number, col: number): string {
   return `compressed_head_models_512_16x16/model_c${col.toString().padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
@@ -94,6 +96,7 @@ function initCachedBytes() {
             if (arr[r][c]) {
               const p = modelPath(r, c);
               cachedBytes += MODEL_SIZES[p] || 0;
+              countedCells.add(`${r},${c}`);
             }
           }
         }
@@ -218,6 +221,8 @@ function initializeReactGrid(): void {
     return;
   }
 
+  const gridRef = React.createRef<LatentGridHandle>();
+
   const downloadBtn = document.getElementById('downloadAllBtn') as HTMLButtonElement | null;
   const statusDiv = document.getElementById('downloadStatus') as HTMLDivElement | null;
 
@@ -235,6 +240,7 @@ function initializeReactGrid(): void {
     if (bulkAbort && downloadBtn) {
       bulkAbort.canceled = true;
       downloadBtn.textContent = 'Download and cache all models';
+      programmaticMove = false;
     }
   }
   window.cancelBulkDownload = cancelBulkDownload;
@@ -275,7 +281,10 @@ function initializeReactGrid(): void {
         for (let c = 0; c < gridSize; c++) {
           if (bulkAbort.canceled) break;
           if (cells[r]?.[c]) continue;
+          programmaticMove = true;
+          gridRef.current?.setActiveCell(r, c);
           await window.switchModel(modelPath(r, c));
+          programmaticMove = false;
           if (bulkAbort.canceled) break;
           if (!cells[r]) cells[r] = [] as any;
           cells[r][c] = true;
@@ -285,6 +294,7 @@ function initializeReactGrid(): void {
 
       downloadBtn.textContent = 'Download and cache all models';
       bulkAbort = null;
+      programmaticMove = false;
     });
   }
   
@@ -302,6 +312,7 @@ function initializeReactGrid(): void {
     const renderGrid = () => {
       root.render(
         React.createElement(LatentGrid, {
+          ref: gridRef,
           gridSize: 16,
           totalWidth: 200,
           totalHeight: 200,
@@ -309,6 +320,7 @@ function initializeReactGrid(): void {
           cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
           isLoading: gridLoading,
           onLatentChange: (row: number, col: number) => {
+            if (programmaticMove) return;
             window.cancelBulkDownload?.();
             const path = modelPath(row, col);
             window.switchModel(path);
@@ -476,9 +488,13 @@ function initDynamicLoader(pcApp: any): void {
         const rc = parseRowCol(dir);
         if (rc) {
           (window as any).markCellCached?.(rc[0], rc[1]);
-          const p = modelPath(rc[0], rc[1]);
-          cachedBytes += MODEL_SIZES[p] || 0;
-          updateDownloadStatus?.();
+          const key = `${rc[0]},${rc[1]}`;
+          if (!countedCells.has(key)) {
+            const p = modelPath(rc[0], rc[1]);
+            cachedBytes += MODEL_SIZES[p] || 0;
+            countedCells.add(key);
+            updateDownloadStatus?.();
+          }
         }
 
         // For on-demand renderers request another frame so the removal is
