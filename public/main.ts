@@ -56,6 +56,9 @@ window.switchModel = async (dir: string): Promise<void> => {
   window._pendingSwitchModelDir = dir;
 };
 
+// Keep a reference to the placeholder for readiness checks
+const placeholderSwitchModel = window.switchModel;
+
 function parseRowCol(dir: string): [number, number] | null {
   const m = /model_c(\d+)_r(\d+)/.exec(dir);
   if (!m) return null;
@@ -243,6 +246,18 @@ function initializeReactGrid(): void {
         bulkAbort = null;
         downloadBtn.textContent = 'Download and cache all models';
         return;
+      }
+
+      // Wait for the real switchModel implementation
+      if (window.switchModel === placeholderSwitchModel) {
+        await new Promise<void>((resolve) => {
+          const id = setInterval(() => {
+            if (window.switchModel !== placeholderSwitchModel) {
+              clearInterval(id);
+              resolve();
+            }
+          }, 50);
+        });
       }
 
       bulkAbort = { canceled: false };
