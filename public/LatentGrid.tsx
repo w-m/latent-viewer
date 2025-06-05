@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Rect, Line, Circle, Group } from 'react-konva';
 import Konva from 'konva';
 
@@ -32,6 +32,53 @@ export const LatentGrid: React.FC<Props> = ({
   const cellWidth = totalWidth / gridSize;
   const cellHeight = totalHeight / gridSize;
   const stageRef = useRef<Konva.Stage>(null);
+
+  // Track which cells have been loaded at least once
+  const [cachedCells, setCachedCells] = useState<boolean[][]>(() => {
+    const empty = Array.from({ length: gridSize }, () =>
+      Array<boolean>(gridSize).fill(false)
+    );
+    try {
+      const stored = localStorage.getItem('cachedCells');
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (
+          Array.isArray(arr) &&
+          arr.length === gridSize &&
+          arr.every(
+            (row: any) => Array.isArray(row) && row.length === gridSize
+          )
+        ) {
+          return arr.map((r: any[]) => r.map((v) => Boolean(v)));
+        }
+      }
+    } catch {
+      /* ignore malformed storage */
+    }
+    return empty;
+  });
+
+  const markCellCached = useCallback((row: number, col: number) => {
+    setCachedCells((prev) => {
+      if (prev[row][col]) return prev;
+      const next = prev.map((r) => r.slice());
+      next[row][col] = true;
+      try {
+        localStorage.setItem('cachedCells', JSON.stringify(next));
+      } catch {
+        /* ignore storage errors */
+      }
+      return next;
+    });
+  }, []);
+
+  // Expose helper so main.ts can mark cells as cached
+  useEffect(() => {
+    (window as any).markCellCached = markCellCached;
+    return () => {
+      delete (window as any).markCellCached;
+    };
+  }, [markCellCached]);
   
   // Choose a random initial cell ensuring the drag indicator remains fully
   // visible (avoid the outermost cells so the 32-px diameter circle never
@@ -206,6 +253,25 @@ export const LatentGrid: React.FC<Props> = ({
           fillLinearGradientEndPoint={{ x: totalWidth, y: totalHeight }}
           fillLinearGradientColorStops={[0, 'transparent', 1, cornerColors[2]]}
         />
+      </Layer>
+
+      {/* Cached cell highlights */}
+      <Layer listening={false}>
+        {cachedCells.map((row, r) =>
+          row.map(
+            (cached, c) =>
+              cached && (
+                <Rect
+                  key={`${r}-${c}`}
+                  x={c * cellWidth}
+                  y={r * cellHeight}
+                  width={cellWidth}
+                  height={cellHeight}
+                  fill="rgba(255,255,255,0.12)"
+                />
+              )
+          )
+        )}
       </Layer>
 
       {/* Grid lines incl. outer border */}
