@@ -94,7 +94,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(255, 255, 255, 0.15);
       border: none;
       border-radius: 4px;
       color: #fff;
@@ -102,7 +102,7 @@
       cursor: pointer;
     }
     .fullscreen-btn:hover {
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(255, 255, 255, 0.25);
     }
     button {
       cursor: pointer;
@@ -154,10 +154,7 @@
       </div>
       <button id="fullscreenBtn" class="fullscreen-btn" title="Toggle fullscreen" aria-label="Toggle fullscreen">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 3 21 3 21 9"></polyline>
-          <polyline points="9 21 3 21 3 15"></polyline>
-          <line x1="21" y1="3" x2="14" y2="10"></line>
-          <line x1="3" y1="21" x2="10" y2="14"></line>
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
         </svg>
       </button>
     </div>
