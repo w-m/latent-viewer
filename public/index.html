@@ -61,6 +61,18 @@
         width: 100%;
         gap: 4px;
       }
+      .status-area {
+        color: #bbb;
+        font-size: 13px;
+        text-align: center;
+        margin-bottom: 8px;
+        height: 18px; /* Fixed height to prevent layout jumps */
+        line-height: 18px; /* Center text vertically within the fixed height */
+        font-weight: 400;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
       .grid-container {
         display: flex;
         align-items: center;
@@ -266,15 +278,7 @@
 
         <!-- Bottom status and controls section -->
         <div class="bottom-section">
-          <div
-            id="statusArea"
-            style="
-              color: #bbb;
-              font-size: 13px;
-              text-align: center;
-              margin-bottom: 8px;
-            "
-          ></div>
+          <div id="statusArea" class="status-area"></div>
           <div
             class="cache-info-container"
             style="
