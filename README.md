@@ -6,7 +6,7 @@ Latent-Viewer is a **zero-boilerplate** PlayCanvas setup for viewing
 * Desktop & mobile orbit / pan / zoom camera (inertia, touch, wheel …)
 * Optional WebXR controller + teleport navigation
 * Both **raw *.ply** splats and **compressed SOGS** assets
-* Ultra-small production builds (≈ 50 kB of JS + the scene data)
+* Production builds tree-shake and minify dependencies and app code (~2.2 MB uncompressed JS; ~650 kB gzipped JS; scene data loaded on demand)
 
 Everything is declaratively described in **HTML** via
 [`@playcanvas/web-components`](https://github.com/playcanvas/playcanvas-web-components).
@@ -21,7 +21,7 @@ Everything is declaratively described in **HTML** via
 git clone https://github.com/w-m/latent-viewer.git
 cd latent-viewer
 
-# Uses the latest PlayCanvas engine from GitHub
+# Install dependencies
 npm install        # or pnpm / yarn
 
 # 2. Start the dev server
@@ -37,7 +37,7 @@ npm run preview    # serves the ./dist folder
 ### Requirements
 
 * **Node 18 LTS** or newer (uses modern `import`/`export`)
-* Git (for pulling the PlayCanvas engine dependency directly from GitHub)
+* Git (for cloning the repository)
 
 
 ---
@@ -46,12 +46,15 @@ npm run preview    # serves the ./dist folder
 
 ```
 latent-viewer/
-├── public/            # Everything served as-is by Vite
-│   ├── index.html     # Declarative scene graph
-│   ├── main.js        # Minimal bootstrap (script registration + URL fix)
-│   ├── head.ply       # Example raw GSplat (legacy)
-│   └── truck/         # Example SOGS scene (meta.json + textures)
-├── src/               # (unused – place app code here if needed)
+├── public/                         # Static assets served by Vite
+│   ├── index.html                  # Application shell: latent grid + PlayCanvas canvas
+│   ├── main.ts                     # Bootstrap & dynamic loader (switchModel, UI hookups)
+│   ├── head.ply                    # Example raw GSplat dataset (legacy)
+│   ├── compressed_head_models_512_16x16/  # Example compressed SOGS datasets
+│   ├── grid-demo.html              # Standalone latent-grid prototype
+│   ├── grid-demo.tsx               # Source for grid-demo.html
+│   └── LatentGrid.tsx              # React component for the interactive latent grid
+├── src/                    # Type definitions and generated model-size index
 ├── dist/              # Production build (generated)
 ├── package.json       # Dependencies & scripts
 ├── vite.config.js     # Vite zero-config with custom root/outDir
@@ -69,54 +72,46 @@ latent-viewer/
 
 ## How it works
 
-1. **Web components** – `<pc-app>`, `<pc-entity>`, `<pc-splat>` & friends
-   auto-create the PlayCanvas application and scene graph:
+1. **Web components** – `<pc-app>`, `<pc-entity>`, and `<pc-splat>` auto-create the PlayCanvas application and scene graph. Models are loaded dynamically via the `switchModel()` function rather than static asset tags.
 
-   ```html
-   <pc-asset id="truck" src="truck/meta.json" type="gsplat"></pc-asset>
-   <pc-entity><pc-splat asset="truck"></pc-splat></pc-entity>
-   ```
+2. **Dynamic loader** – `switchModel(dir)` in `public/main.ts`:
+   - Fetches and sanity-checks `meta.json`
+   - Loads the GSplat JSON and texture assets via the PlayCanvas asset pipeline
+   - Waits for the internal sorter update and a frame-end before swapping models
+   - Uses token-based cancellation and live/pending-entity logic to guarantee zero flicker and at most two GSplat entities in memory.
 
-2. **Helper scripts** (orbit camera, XR controllers, XR teleport) are ES-modules
-   living in `node_modules/playcanvas/scripts/esm/`.  They are imported in
-   `public/main.js`, registered with `pc.registerScript`, and then referenced by
-   `<pc-script name="cameraControls">` tags.
+3. **Helper scripts** – Orbit camera, XR controllers, and teleport scripts are ES modules in `playcanvas/scripts/esm/`. They are imported and registered in `public/main.ts` (via `pc.registerScript`) so the `<pc-script name="cameraControls">`, `<pc-script name="xrControllers">`, and `<pc-script name="xrNavigation">` tags work out-of-the-box.
 
-3. **URL fix for SOGS** – The engine expects the `src` of a GSplat asset to be
-   absolute.  `main.js` rewrites any relative URLs so `truck/meta.json` becomes
-   `http://localhost:5173/truck/meta.json`, preventing runtime errors.
-
-4. **Bundling** – Vite tree-shakes unused PlayCanvas code and helper scripts.
-   A production build is typically < 100 kB gzip.
+4. **Bundling** – Vite tree-shakes the PlayCanvas engine, helper scripts, React, Konva, and application code. Unused code is removed automatically for optimal production builds.
 
 
 ---
 
 ## Adding your own scene
 
-1. Copy your **`*.ply`** or **SOGS folder (`meta.json` + textures)** into
-   `public/`.
-2. Edit `public/index.html` and replace the `<pc-asset id="truck" …>` and
-   matching `<pc-splat asset="…">` tags with your own IDs/paths.
+To add your own GSplat datasets or raw `.ply` files:
 
-No JavaScript changes required.
+1. Copy your raw `*.ply` file or a SOGS folder (containing `meta.json` and texture files) into the `public/` directory (e.g. under `compressed_head_models_512_16x16/`).
+2. Re-generate the model-size index (used for caching and download counters) and restart the dev server:
+
+   ```bash
+   npm run dev
+   ```
+
+3. Use the latent grid UI to navigate to the cell corresponding to your new model and load it.
 
 
 ---
 
-## Updating PlayCanvas / helpers
+## Dependencies
 
-The project pins the engine to the **`main` branch on GitHub**:
+The project uses PlayCanvas, @playcanvas/web-components, React, and Konva from npm. To update to the latest versions, run:
 
-```json
-"dependencies": {
-  "playcanvas": "github:playcanvas/engine#main",
-  "@playcanvas/web-components": "^0.2.6"
-}
 ```
-
-Simply run `npm update` to pull the latest engine.  Web-components follows semver
-so it’s updated through the normal npm workflow.
+npm i -g npm-check-updates
+ncu -u
+npm install
+```
 
 ---
 
@@ -195,27 +190,24 @@ Runtime characteristics:
 
 ### Model Structure
 
-The models are organized in directories under `public/compressed_head_models/`:
+The models live under `public/compressed_head_models_512_16x16/` in a 16×16 grid of subdirectories named `model_c<col>_r<row>` (zero-padded column/row indices). For example:
 
 ```
-compressed_head_models/
-  ├── model_a0/
-  ├── model_a1/
-  ├── model_a2/
-  ├── model_b0/
-  ├── model_b1/
-  ├── model_b2/
-  ├── model_c0/
-  ├── model_c1/
-  └── model_c2/
+compressed_head_models_512_16x16/
+  ├── model_c00_r00/
+  ├── model_c00_r01/
+  ├── model_c00_r02/
+  ├── ...
+  ├── model_c15_r14/
+  └── model_c15_r15/
 ```
 
 Each model directory contains the necessary SOGS files:
-- `meta.json` - Model metadata
-- `means_l.webp`, `means_u.webp` - Mean positions
-- `quats.webp` - Quaternions for rotation
-- `scales.webp` - Scaling factors
-- `sh0.webp` - Spherical harmonics
+- `meta.json` — model metadata
+- `means_l.webp`, `means_u.webp` — mean positions
+- `quats.webp` — quaternions for rotation
+- `scales.webp` — scaling factors
+- `sh0.webp` — spherical harmonics
 
 ### Grid Navigation
 
