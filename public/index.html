@@ -136,10 +136,56 @@
       }
       :fullscreen .fullscreen-btn .contract-icon {
         display: block;
-      }
-      .fullscreen-btn:hover {
-        background: rgba(255, 255, 255, 0.25);
-      }
+      }    .fullscreen-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+    .settings-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px; /* Same distance from corner as fullscreen button */
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.15);
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      backdrop-filter: blur(2px);
+      cursor: pointer;
+      padding: 0;
+    }
+    .settings-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+    .settings-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+    .settings-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 200px;
+      color: #fff;
+      backdrop-filter: blur(4px);
+      display: none;
+      z-index: 1000;
+    }
+    .settings-panel.show {
+      display: block;
+    }
+    .settings-panel h3 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      font-weight: 500;
+    }
       button {
         cursor: pointer;
         padding: 8px 16px;
@@ -211,13 +257,6 @@
           </div>
           <div class="grid-container">
             <div id="latentGrid"></div>
-          </div>
-          <!-- Background color picker -->
-          <div class="color-picker">
-            <label for="bgColorPicker" class="color-picker-label"
-              >Background color</label
-            >
-            <input type="color" id="bgColorPicker" value="#222222" />
           </div>
         </div>
 
@@ -339,6 +378,28 @@
           />
         </svg>
       </button>
+
+      <button
+        id="settingsBtn"
+        class="settings-btn"
+        title="Settings"
+        aria-label="Settings"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+          <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+          <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+        </svg>
+      </button>
+
+      <!-- Settings panel (positioned absolutely) -->
+      <div id="settingsPanel" class="settings-panel">
+        <h3>Settings</h3>
+        <div class="color-picker">
+          <label for="bgColorPicker" class="color-picker-label">Background color</label>
+          <input type="color" id="bgColorPicker" value="#222222" />
+        </div>
+      </div>
+
     </div>
   </body>
 </html>

@@ -180,6 +180,7 @@ function initApplication(): void {
   // Initialize React UI immediately - don't wait for pcApp.ready
   initializeReactGrid();
   initFullscreenButton();
+  initSettingsButton();
   
   // Wait for the PC app to be ready
   pcApp.addEventListener(
@@ -397,6 +398,36 @@ function initFullscreenButton(): void {
         (document as any).webkitExitFullscreen ||
         (document as any).msExitFullscreen;
       exit?.call(document);
+    }
+  });
+}
+
+/**
+ * Hook up the settings button and panel
+ */
+function initSettingsButton(): void {
+  const btn = document.getElementById('settingsBtn') as HTMLButtonElement | null;
+  const panel = document.getElementById('settingsPanel') as HTMLDivElement | null;
+  
+  if (!btn || !panel) return;
+  
+  // Toggle settings panel
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.classList.toggle('show');
+  });
+  
+  // Hide panel when clicking elsewhere
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target as Node) && e.target !== btn) {
+      panel.classList.remove('show');
+    }
+  });
+  
+  // Handle escape key to close panel
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && panel.classList.contains('show')) {
+      panel.classList.remove('show');
     }
   });
 }
