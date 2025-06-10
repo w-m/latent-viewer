@@ -114,10 +114,15 @@ initCachedBytes();
 // ------------------------------------------------------------------
 
 let loadingDiv: HTMLDivElement | null = null;
+let statusArea: HTMLDivElement | null = null;
 // Timer identifier for delayed loading indicator
 let loadingIndicatorTimer: number | null = null;
 
 function createLoadingIndicator(container: HTMLElement) {
+  // Don't try to find statusArea here - it might not exist yet
+  // Instead, we'll look for it when we actually need to show/hide the indicator
+  
+  // Create fallback loading indicator as before
   if (loadingDiv) return;
   loadingDiv = document.createElement('div');
   loadingDiv.textContent = 'Loading model...';
@@ -138,8 +143,21 @@ function createLoadingIndicator(container: HTMLElement) {
 }
 
 function setLoadingIndicator(visible: boolean) {
-  if (!loadingDiv) return;
-  loadingDiv.style.visibility = visible ? 'visible' : 'hidden';
+  // Look for statusArea each time we need it (it might not exist during early initialization)
+  if (!statusArea) {
+    statusArea = document.getElementById('statusArea') as HTMLDivElement | null;
+  }
+  
+  if (statusArea) {
+    if (visible) {
+      statusArea.textContent = 'Loading model...';
+      statusArea.style.color = '#bbb'; // Reset to normal color
+    } else {
+      statusArea.textContent = '';
+    }
+  } else if (loadingDiv) {
+    loadingDiv.style.visibility = visible ? 'visible' : 'hidden';
+  }
 }
 
 /**
@@ -240,7 +258,8 @@ function initializeReactGrid(): void {
   function cancelBulkDownload() {
     if (bulkAbort && downloadBtn) {
       bulkAbort.canceled = true;
-      downloadBtn.textContent = 'Download and cache all models';
+      downloadBtn.classList.remove('downloading');
+      downloadBtn.title = 'Download and cache all models';
       programmaticMove = false;
     }
   }
@@ -252,7 +271,8 @@ function initializeReactGrid(): void {
       if (bulkAbort) {
         bulkAbort.canceled = true;
         bulkAbort = null;
-        downloadBtn.textContent = 'Download and cache all models';
+        downloadBtn.classList.remove('downloading');
+        downloadBtn.title = 'Download and cache all models';
         return;
       }
 
@@ -269,7 +289,8 @@ function initializeReactGrid(): void {
       }
 
       bulkAbort = { canceled: false };
-      downloadBtn.textContent = 'Cancel download';
+      downloadBtn.classList.add('downloading');
+      downloadBtn.title = 'Cancel download';
 
       let cells: boolean[][] = [];
       try {
@@ -304,7 +325,8 @@ function initializeReactGrid(): void {
           if (bulkAbort.canceled) break;
         }
       } finally {
-        downloadBtn.textContent = 'Download and cache all models';
+        downloadBtn.classList.remove('downloading');
+        downloadBtn.title = 'Download and cache all models';
         bulkAbort = null;
         programmaticMove = false;
       }
@@ -439,7 +461,15 @@ function initDynamicLoader(pcApp: any): void {
       clearTimeout(loadingIndicatorTimer);
     }
     loadingIndicatorTimer = window.setTimeout(() => {
-      if (loadingDiv) {
+      // Look for statusArea each time we need it
+      if (!statusArea) {
+        statusArea = document.getElementById('statusArea') as HTMLDivElement | null;
+      }
+      
+      if (statusArea) {
+        statusArea.textContent = 'Loading model...';
+        statusArea.style.color = '#bbb';
+      } else if (loadingDiv) {
         loadingDiv.textContent = 'Loading model...';
         loadingDiv.style.background = 'rgba(0,0,0,0.6)';
       }
@@ -602,7 +632,15 @@ function initDynamicLoader(pcApp: any): void {
         clearTimeout(loadingIndicatorTimer);
         loadingIndicatorTimer = null;
       }
-      if (loadingDiv) {
+      // Look for statusArea each time we need it
+      if (!statusArea) {
+        statusArea = document.getElementById('statusArea') as HTMLDivElement | null;
+      }
+      
+      if (statusArea) {
+        statusArea.textContent = 'Error loading model';
+        statusArea.style.color = '#ff6666';
+      } else if (loadingDiv) {
         loadingDiv.textContent = 'Error loading model';
         loadingDiv.style.background = 'rgba(128,0,0,0.8)';
         loadingDiv.style.visibility = 'visible';
