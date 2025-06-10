@@ -277,24 +277,35 @@ function initializeReactGrid(): void {
         cells = [];
       }
 
-      for (let r = 0; r < gridSize; r++) {
-        for (let c = 0; c < gridSize; c++) {
+      try {
+        for (let r = 0; r < gridSize; r++) {
+          for (let c = 0; c < gridSize; c++) {
+            if (bulkAbort.canceled) break;
+            if (cells[r]?.[c]) continue;
+            programmaticMove = true;
+            gridRef.current?.setActiveCell(r, c);
+            try {
+              await window.switchModel(modelPath(r, c));
+            } catch (error) {
+              console.error(
+                `Error loading model during bulk download: ${modelPath(r, c)}`,
+                error
+              );
+              bulkAbort.canceled = true;
+              break;
+            }
+            programmaticMove = false;
+            if (bulkAbort.canceled) break;
+            if (!cells[r]) cells[r] = [] as any;
+            cells[r][c] = true;
+          }
           if (bulkAbort.canceled) break;
-          if (cells[r]?.[c]) continue;
-          programmaticMove = true;
-          gridRef.current?.setActiveCell(r, c);
-          await window.switchModel(modelPath(r, c));
-          programmaticMove = false;
-          if (bulkAbort.canceled) break;
-          if (!cells[r]) cells[r] = [] as any;
-          cells[r][c] = true;
         }
-        if (bulkAbort.canceled) break;
+      } finally {
+        downloadBtn.textContent = 'Download and cache all models';
+        bulkAbort = null;
+        programmaticMove = false;
       }
-
-      downloadBtn.textContent = 'Download and cache all models';
-      bulkAbort = null;
-      programmaticMove = false;
     });
   }
   
@@ -401,6 +412,10 @@ function initDynamicLoader(pcApp: any): void {
       clearTimeout(loadingIndicatorTimer);
     }
     loadingIndicatorTimer = window.setTimeout(() => {
+      if (loadingDiv) {
+        loadingDiv.textContent = 'Loading model...';
+        loadingDiv.style.background = 'rgba(0,0,0,0.6)';
+      }
       setLoadingIndicator(true);
       (window as any).setGridLoading?.(true);
       loadingIndicatorTimer = null;
@@ -431,6 +446,16 @@ function initDynamicLoader(pcApp: any): void {
     app.root.addChild(nextEnt);
     pendingEnt = nextEnt;
 
+    // Listen for asset (JSON or texture) errors for this model
+    let assetError: Error | null = null;
+    const onAssetError = (a: pc.Asset, e: unknown) => {
+      const fileUrl = (a.file as any)?.url;
+      if (typeof fileUrl === 'string' && fileUrl.includes(`${dir}/`)) {
+        assetError = e instanceof Error ? e : new Error(String(e));
+      }
+    };
+    app.assets.on('error', onAssetError);
+
     try {
       // 1. Download / decode JSON + buffers -----------------------------
       await new Promise<void>((resolve, reject) => {
@@ -438,6 +463,7 @@ function initDynamicLoader(pcApp: any): void {
         asset.once('error', reject);
         app.assets.load(asset);
       });
+      if (assetError) throw assetError;
 
       if (myToken !== currentToken) {
         // Superseded
@@ -448,6 +474,7 @@ function initDynamicLoader(pcApp: any): void {
 
       // 2. Kick off GPU upload -----------------------------------------
       nextEnt.gsplat.asset = asset;
+      if (assetError) throw assetError;
 
       // 3. Wait for first sorter update (splat renderer ready) ----------
       await new Promise<void>((resolve) => {
@@ -465,6 +492,7 @@ function initDynamicLoader(pcApp: any): void {
         };
         attach();
       });
+      if (assetError) throw assetError;
 
       if (myToken !== currentToken) {
         nextEnt.destroy();
@@ -473,70 +501,77 @@ function initDynamicLoader(pcApp: any): void {
       }
 
       // 4. Keep both models for the first rendered frame, then retire old
-      app.once('frameend', () => {
-        if (myToken !== currentToken) return; // superseded in the meantime
-
-        if (liveEnt && liveEnt !== nextEnt) {
-          const liveAsset = liveEnt.gsplat?.asset as pc.Asset | null;
-          liveEnt.destroy();
-          destroyAsset(liveAsset);
-        }
-
-        liveEnt = nextEnt;
-        pendingEnt = null;
-
-        const rc = parseRowCol(dir);
-        if (rc) {
-          (window as any).markCellCached?.(rc[0], rc[1]);
-          const key = `${rc[0]},${rc[1]}`;
-          if (!countedCells.has(key)) {
-            const p = modelPath(rc[0], rc[1]);
-            cachedBytes += MODEL_SIZES[p] || 0;
-            countedCells.add(key);
-            updateDownloadStatus?.();
+      await new Promise<void>((resolve) => {
+        app.once('frameend', () => {
+          if (myToken !== currentToken) {
+            resolve();
+            return;
           }
-        }
 
-        // For on-demand renderers request another frame so the removal is
-        // visible without user interaction.
-        if (typeof (app as any).renderNextFrame === 'function') {
-          (app as any).renderNextFrame();
-        }
-
-        // Mark loading done and process any queued request.
-        loading = false;
-        if (!nextDir) {
-          if (loadingIndicatorTimer !== null) {
-            clearTimeout(loadingIndicatorTimer);
-            loadingIndicatorTimer = null;
+          if (liveEnt && liveEnt !== nextEnt) {
+            const liveAsset = liveEnt.gsplat?.asset as pc.Asset | null;
+            liveEnt.destroy();
+            destroyAsset(liveAsset);
           }
-          setLoadingIndicator(false);
-          (window as any).setGridLoading?.(false);
-        }
-        if (nextDir) {
-          const q = nextDir;
-          nextDir = null;
-          switchModel(q);
-        }
+
+          liveEnt = nextEnt;
+          pendingEnt = null;
+
+          const rc = parseRowCol(dir);
+          if (rc) {
+            (window as any).markCellCached?.(rc[0], rc[1]);
+            const key = `${rc[0]},${rc[1]}`;
+            if (!countedCells.has(key)) {
+              const p = modelPath(rc[0], rc[1]);
+              cachedBytes += MODEL_SIZES[p] || 0;
+              countedCells.add(key);
+              updateDownloadStatus?.();
+            }
+          }
+
+          // For on-demand renderers request another frame so the removal is
+          // visible without user interaction.
+          if (typeof (app as any).renderNextFrame === 'function') {
+            (app as any).renderNextFrame();
+          }
+
+          // Mark loading done and process any queued request.
+          loading = false;
+          if (!nextDir) {
+            if (loadingIndicatorTimer !== null) {
+              clearTimeout(loadingIndicatorTimer);
+              loadingIndicatorTimer = null;
+            }
+            setLoadingIndicator(false);
+            (window as any).setGridLoading?.(false);
+          }
+          if (nextDir) {
+            const q = nextDir;
+            nextDir = null;
+            switchModel(q);
+          }
+          resolve();
+        });
       });
+      if (assetError) throw assetError;
     } catch (err) {
       console.error(`Failed to load ${dir}`, err);
       nextEnt.destroy();
       destroyAsset(asset);
       loading = false;
-      if (!nextDir) {
-        if (loadingIndicatorTimer !== null) {
-          clearTimeout(loadingIndicatorTimer);
-          loadingIndicatorTimer = null;
-        }
-        setLoadingIndicator(false);
-        (window as any).setGridLoading?.(false);
+      nextDir = null;
+      if (loadingIndicatorTimer !== null) {
+        clearTimeout(loadingIndicatorTimer);
+        loadingIndicatorTimer = null;
       }
-      if (nextDir) {
-        const q = nextDir;
-        nextDir = null;
-        switchModel(q);
+      if (loadingDiv) {
+        loadingDiv.textContent = 'Error loading model';
+        loadingDiv.style.background = 'rgba(128,0,0,0.8)';
+        loadingDiv.style.visibility = 'visible';
       }
+      (window as any).setGridLoading?.(false);
+    } finally {
+      app.assets.off('error', onAssetError);
     }
   }
 
