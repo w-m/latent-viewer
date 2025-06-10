@@ -244,6 +244,7 @@ function initializeReactGrid(): void {
     }
   }
   window.cancelBulkDownload = cancelBulkDownload;
+  gridContainer.addEventListener('pointerdown', cancelBulkDownload);
 
   if (downloadBtn) {
     downloadBtn.addEventListener('click', async () => {
