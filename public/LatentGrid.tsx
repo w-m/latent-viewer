@@ -1,4 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useImperativeHandle,
+  forwardRef,
+} from 'react';
 import { Stage, Layer, Rect, Line, Circle, Group } from 'react-konva';
 import Konva from 'konva';
 
@@ -13,22 +20,26 @@ interface Props {
   isLoading?: boolean;                      // highlight cell differently while loading
 }
 
+export interface LatentGridHandle {
+  setActiveCell: (row: number, col: number) => void;
+}
+
 /**
  * LatentGrid – simple interactive N×N grid that calls `onCellEnter` whenever
  * the pointer moves into a new cell.  Visually highlights the active cell
  * with a glow.  Performance-optimised for the tight pointermove loop – no
  * new object allocations inside the handler.
  */
-export const LatentGrid: React.FC<Props> = ({
+export const LatentGrid = forwardRef<LatentGridHandle, Props>(({
   gridSize = 10,
   totalWidth = 400,
   totalHeight = 400,
   indicatorOpacity = 1.0,
-  cornerColors = ['#FF5733', '#33FF57', '#3357FF', '#F033FF'], // default colors for corners
+  cornerColors = ['#FF5733', '#33FF57', '#3357FF', '#F033FF'],
   onCellEnter = () => {},
   onLatentChange = () => {},
-  isLoading = false
-}) => {
+  isLoading = false,
+}, ref) => {
   const cellWidth = totalWidth / gridSize;
   const cellHeight = totalHeight / gridSize;
   const stageRef = useRef<Konva.Stage>(null);
@@ -105,6 +116,18 @@ export const LatentGrid: React.FC<Props> = ({
   const [hasInteracted, setHasInteracted] = useState(false);
   const handleGroupRef = useRef<Konva.Group>(null);
   const circleRef = useRef<Konva.Circle>(null);
+
+  const setActiveCell = useCallback(
+    (row: number, col: number) => {
+      const x = (col + 0.5) * cellWidth;
+      const y = (row + 0.5) * cellHeight;
+      setIndicatorPos({ x, y });
+      setHasInteracted(true);
+    },
+    [cellWidth, cellHeight]
+  );
+
+  useImperativeHandle(ref, () => ({ setActiveCell }), [setActiveCell]);
 
   // Notify parent of the initially selected cell as soon as the component
   // mounts so the corresponding model can be loaded.
@@ -346,4 +369,4 @@ export const LatentGrid: React.FC<Props> = ({
       </Layer>
     </Stage>
   );
-};
+});

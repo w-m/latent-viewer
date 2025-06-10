@@ -11,6 +11,7 @@ declare global {
     _pendingSwitchModelDir?: string | null;
     markCellCached?: (row: number, col: number) => void;
     setGridLoading?: (v: boolean) => void;
+    cancelBulkDownload?: () => void;
   }
 }
 window.pc = pc;
@@ -23,7 +24,8 @@ import { XrNavigation } from 'playcanvas/scripts/esm/xr-navigation.mjs';
 // 4) React components
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { LatentGrid } from './LatentGrid';
+import { LatentGrid, LatentGridHandle } from './LatentGrid';
+import { MODEL_SIZES, TOTAL_MODEL_BYTES } from '../src/model-sizes';
 
 // ------------------------------------------------------------
 // Utility: small debounce implementation (trailing-edge only)
@@ -54,6 +56,9 @@ window.switchModel = async (dir: string): Promise<void> => {
   window._pendingSwitchModelDir = dir;
 };
 
+// Keep a reference to the placeholder for readiness checks
+const placeholderSwitchModel = window.switchModel;
+
 function parseRowCol(dir: string): [number, number] | null {
   const m = /model_c(\d+)_r(\d+)/.exec(dir);
   if (!m) return null;
@@ -64,6 +69,45 @@ function parseRowCol(dir: string): [number, number] | null {
 
 // Global initialization flag to prevent multiple initializations
 let hasInitialized = false;
+
+// ------------------------------------------------------------
+// Bulk download state
+// ------------------------------------------------------------
+
+const gridSize = 16;
+let cachedBytes = 0;
+const countedCells = new Set<string>();
+let bulkAbort: { canceled: boolean } | null = null;
+let updateDownloadStatus: (() => void) | null = null;
+let programmaticMove = false;
+
+function modelPath(row: number, col: number): string {
+  return `compressed_head_models_512_16x16/model_c${col.toString().padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
+}
+
+function initCachedBytes() {
+  try {
+    const stored = localStorage.getItem('cachedCells');
+    if (stored) {
+      const arr = JSON.parse(stored);
+      if (Array.isArray(arr) && arr.length === gridSize) {
+        for (let r = 0; r < gridSize; r++) {
+          for (let c = 0; c < gridSize; c++) {
+            if (arr[r][c]) {
+              const p = modelPath(r, c);
+              cachedBytes += MODEL_SIZES[p] || 0;
+              countedCells.add(`${r},${c}`);
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+initCachedBytes();
 
 // ------------------------------------------------------------------
 // Loading indicator (pill in top-left corner)
@@ -176,6 +220,95 @@ function initializeReactGrid(): void {
     console.error('Grid container not found');
     return;
   }
+
+  const gridRef = React.createRef<LatentGridHandle>();
+
+  const downloadBtn = document.getElementById('downloadAllBtn') as HTMLButtonElement | null;
+  const statusDiv = document.getElementById('downloadStatus') as HTMLDivElement | null;
+
+  const updateStatus = () => {
+    if (!statusDiv) return;
+    const mb = (cachedBytes / (1024 * 1024)).toFixed(1);
+    const totalMb = (TOTAL_MODEL_BYTES / (1024 * 1024)).toFixed(1);
+    statusDiv.textContent = `${mb} MB / ${totalMb} MB`;
+  };
+
+  updateStatus();
+  updateDownloadStatus = updateStatus;
+
+  function cancelBulkDownload() {
+    if (bulkAbort && downloadBtn) {
+      bulkAbort.canceled = true;
+      downloadBtn.textContent = 'Download and cache all models';
+      programmaticMove = false;
+    }
+  }
+  window.cancelBulkDownload = cancelBulkDownload;
+  gridContainer.addEventListener('pointerdown', cancelBulkDownload);
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', async () => {
+      if (bulkAbort) {
+        bulkAbort.canceled = true;
+        bulkAbort = null;
+        downloadBtn.textContent = 'Download and cache all models';
+        return;
+      }
+
+      // Wait for the real switchModel implementation
+      if (window.switchModel === placeholderSwitchModel) {
+        await new Promise<void>((resolve) => {
+          const id = setInterval(() => {
+            if (window.switchModel !== placeholderSwitchModel) {
+              clearInterval(id);
+              resolve();
+            }
+          }, 50);
+        });
+      }
+
+      bulkAbort = { canceled: false };
+      downloadBtn.textContent = 'Cancel download';
+
+      let cells: boolean[][] = [];
+      try {
+        const stored = localStorage.getItem('cachedCells');
+        if (stored) cells = JSON.parse(stored);
+      } catch {
+        cells = [];
+      }
+
+      try {
+        for (let r = 0; r < gridSize; r++) {
+          for (let c = 0; c < gridSize; c++) {
+            if (bulkAbort.canceled) break;
+            if (cells[r]?.[c]) continue;
+            programmaticMove = true;
+            gridRef.current?.setActiveCell(r, c);
+            try {
+              await window.switchModel(modelPath(r, c));
+            } catch (error) {
+              console.error(
+                `Error loading model during bulk download: ${modelPath(r, c)}`,
+                error
+              );
+              bulkAbort.canceled = true;
+              break;
+            }
+            programmaticMove = false;
+            if (bulkAbort.canceled) break;
+            if (!cells[r]) cells[r] = [] as any;
+            cells[r][c] = true;
+          }
+          if (bulkAbort.canceled) break;
+        }
+      } finally {
+        downloadBtn.textContent = 'Download and cache all models';
+        bulkAbort = null;
+        programmaticMove = false;
+      }
+    });
+  }
   
   try {
     const root = createRoot(gridContainer);
@@ -191,6 +324,7 @@ function initializeReactGrid(): void {
     const renderGrid = () => {
       root.render(
         React.createElement(LatentGrid, {
+          ref: gridRef,
           gridSize: 16,
           totalWidth: 200,
           totalHeight: 200,
@@ -198,10 +332,10 @@ function initializeReactGrid(): void {
           cornerColors: ['#009775', '#662d91', '#662d91', '#009775'],
           isLoading: gridLoading,
           onLatentChange: (row: number, col: number) => {
-            const modelPath = `compressed_head_models_512_16x16/model_c${col
-              .toString()
-              .padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
-            window.switchModel(modelPath);
+            if (programmaticMove) return;
+            window.cancelBulkDownload?.();
+            const path = modelPath(row, col);
+            window.switchModel(path);
           },
         })
       );
@@ -279,6 +413,10 @@ function initDynamicLoader(pcApp: any): void {
       clearTimeout(loadingIndicatorTimer);
     }
     loadingIndicatorTimer = window.setTimeout(() => {
+      if (loadingDiv) {
+        loadingDiv.textContent = 'Loading model...';
+        loadingDiv.style.background = 'rgba(0,0,0,0.6)';
+      }
       setLoadingIndicator(true);
       (window as any).setGridLoading?.(true);
       loadingIndicatorTimer = null;
@@ -309,13 +447,35 @@ function initDynamicLoader(pcApp: any): void {
     app.root.addChild(nextEnt);
     pendingEnt = nextEnt;
 
+    // Listen for asset (JSON or texture) errors for this model
+    let assetError: Error | null = null;
+    const onAssetError = (a: pc.Asset, e: unknown) => {
+      const fileUrl = (a.file as any)?.url;
+      if (typeof fileUrl === 'string' && fileUrl.includes(`${dir}/`)) {
+        assetError = e instanceof Error ? e : new Error(String(e));
+      }
+    };
+    app.assets.on('error', onAssetError);
+
     try {
-      // 1. Download / decode JSON + buffers -----------------------------
-      await new Promise<void>((resolve, reject) => {
+    // 1. Load & sanity-check meta.json (catch both 404 and SPA-fallback)
+    const metaResp = await fetch(url);
+    if (!metaResp.ok) {
+      throw new Error(`Meta file not found for model '${dir}' (HTTP ${metaResp.status})`);
+    }
+    const metaJson = await metaResp.json();
+    if (!metaJson || !metaJson.means) {
+      throw new Error(`Invalid meta.json for model '${dir}' (missing means)`);
+    }
+    asset.data = metaJson;
+
+    // 2. Download / decode JSON + buffers -----------------------------
+    await new Promise<void>((resolve, reject) => {
         asset.once('load', resolve);
         asset.once('error', reject);
         app.assets.load(asset);
       });
+      if (assetError) throw assetError;
 
       if (myToken !== currentToken) {
         // Superseded
@@ -324,10 +484,11 @@ function initDynamicLoader(pcApp: any): void {
         return;
       }
 
-      // 2. Kick off GPU upload -----------------------------------------
+      // 3. Kick off GPU upload -----------------------------------------
       nextEnt.gsplat.asset = asset;
+      if (assetError) throw assetError;
 
-      // 3. Wait for first sorter update (splat renderer ready) ----------
+      // 4. Wait for first sorter update (splat renderer ready) ----------
       await new Promise<void>((resolve) => {
         const maxRetries = 5;
         let tries = 0;
@@ -343,6 +504,7 @@ function initDynamicLoader(pcApp: any): void {
         };
         attach();
       });
+      if (assetError) throw assetError;
 
       if (myToken !== currentToken) {
         nextEnt.destroy();
@@ -350,64 +512,78 @@ function initDynamicLoader(pcApp: any): void {
         return;
       }
 
-      // 4. Keep both models for the first rendered frame, then retire old
-      app.once('frameend', () => {
-        if (myToken !== currentToken) return; // superseded in the meantime
-
-        if (liveEnt && liveEnt !== nextEnt) {
-          const liveAsset = liveEnt.gsplat?.asset as pc.Asset | null;
-          liveEnt.destroy();
-          destroyAsset(liveAsset);
-        }
-
-        liveEnt = nextEnt;
-        pendingEnt = null;
-
-        const rc = parseRowCol(dir);
-        if (rc) {
-          (window as any).markCellCached?.(rc[0], rc[1]);
-        }
-
-        // For on-demand renderers request another frame so the removal is
-        // visible without user interaction.
-        if (typeof (app as any).renderNextFrame === 'function') {
-          (app as any).renderNextFrame();
-        }
-
-        // Mark loading done and process any queued request.
-        loading = false;
-        if (!nextDir) {
-          if (loadingIndicatorTimer !== null) {
-            clearTimeout(loadingIndicatorTimer);
-            loadingIndicatorTimer = null;
+      // 5. Keep both models for the first rendered frame, then retire old
+      await new Promise<void>((resolve) => {
+        app.once('frameend', () => {
+          if (myToken !== currentToken) {
+            resolve();
+            return;
           }
-          setLoadingIndicator(false);
-          (window as any).setGridLoading?.(false);
-        }
-        if (nextDir) {
-          const q = nextDir;
-          nextDir = null;
-          switchModel(q);
-        }
+
+          if (liveEnt && liveEnt !== nextEnt) {
+            const liveAsset = liveEnt.gsplat?.asset as pc.Asset | null;
+            liveEnt.destroy();
+            destroyAsset(liveAsset);
+          }
+
+          liveEnt = nextEnt;
+          pendingEnt = null;
+
+          const rc = parseRowCol(dir);
+          if (rc) {
+            (window as any).markCellCached?.(rc[0], rc[1]);
+            const key = `${rc[0]},${rc[1]}`;
+            if (!countedCells.has(key)) {
+              const p = modelPath(rc[0], rc[1]);
+              cachedBytes += MODEL_SIZES[p] || 0;
+              countedCells.add(key);
+              updateDownloadStatus?.();
+            }
+          }
+
+          // For on-demand renderers request another frame so the removal is
+          // visible without user interaction.
+          if (typeof (app as any).renderNextFrame === 'function') {
+            (app as any).renderNextFrame();
+          }
+
+          // Mark loading done and process any queued request.
+          loading = false;
+          if (!nextDir) {
+            if (loadingIndicatorTimer !== null) {
+              clearTimeout(loadingIndicatorTimer);
+              loadingIndicatorTimer = null;
+            }
+            setLoadingIndicator(false);
+            (window as any).setGridLoading?.(false);
+          }
+          if (nextDir) {
+            const q = nextDir;
+            nextDir = null;
+            switchModel(q);
+          }
+          resolve();
+        });
       });
+      if (assetError) throw assetError;
     } catch (err) {
       console.error(`Failed to load ${dir}`, err);
       nextEnt.destroy();
       destroyAsset(asset);
       loading = false;
-      if (!nextDir) {
-        if (loadingIndicatorTimer !== null) {
-          clearTimeout(loadingIndicatorTimer);
-          loadingIndicatorTimer = null;
-        }
-        setLoadingIndicator(false);
-        (window as any).setGridLoading?.(false);
+      nextDir = null;
+      if (loadingIndicatorTimer !== null) {
+        clearTimeout(loadingIndicatorTimer);
+        loadingIndicatorTimer = null;
       }
-      if (nextDir) {
-        const q = nextDir;
-        nextDir = null;
-        switchModel(q);
+      if (loadingDiv) {
+        loadingDiv.textContent = 'Error loading model';
+        loadingDiv.style.background = 'rgba(128,0,0,0.8)';
+        loadingDiv.style.visibility = 'visible';
       }
+      (window as any).setGridLoading?.(false);
+    } finally {
+      app.assets.off('error', onAssetError);
     }
   }
 
