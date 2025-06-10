@@ -161,6 +161,7 @@ function initApplication(): void {
   
   // Initialize React UI immediately - don't wait for pcApp.ready
   initializeReactGrid();
+  initFullscreenButton();
   
   // Wait for the PC app to be ready
   pcApp.addEventListener(
@@ -351,6 +352,31 @@ function initializeReactGrid(): void {
   } catch (error) {
     console.error('Error rendering grid:', error);
   }
+}
+
+/**
+ * Hook up the fullscreen toggle button
+ */
+function initFullscreenButton(): void {
+  const btn = document.getElementById('fullscreenBtn') as HTMLButtonElement | null;
+  if (!btn) return;
+  const container = document.querySelector('.container') as HTMLElement | null;
+  btn.addEventListener('click', () => {
+    if (!container) return;
+    if (!document.fullscreenElement) {
+      const req =
+        (container as any).requestFullscreen ||
+        (container as any).webkitRequestFullscreen ||
+        (container as any).msRequestFullscreen;
+      req?.call(container);
+    } else {
+      const exit =
+        (document as any).exitFullscreen ||
+        (document as any).webkitExitFullscreen ||
+        (document as any).msExitFullscreen;
+      exit?.call(document);
+    }
+  });
 }
 
 /**
