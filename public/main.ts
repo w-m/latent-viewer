@@ -457,8 +457,19 @@ function initDynamicLoader(pcApp: any): void {
     app.assets.on('error', onAssetError);
 
     try {
-      // 1. Download / decode JSON + buffers -----------------------------
-      await new Promise<void>((resolve, reject) => {
+    // 1. Load & sanity-check meta.json (catch both 404 and SPA-fallback)
+    const metaResp = await fetch(url);
+    if (!metaResp.ok) {
+      throw new Error(`Meta file not found for model '${dir}' (HTTP ${metaResp.status})`);
+    }
+    const metaJson = await metaResp.json();
+    if (!metaJson || !metaJson.means) {
+      throw new Error(`Invalid meta.json for model '${dir}' (missing means)`);
+    }
+    asset.data = metaJson;
+
+    // 2. Download / decode JSON + buffers -----------------------------
+    await new Promise<void>((resolve, reject) => {
         asset.once('load', resolve);
         asset.once('error', reject);
         app.assets.load(asset);
@@ -472,11 +483,11 @@ function initDynamicLoader(pcApp: any): void {
         return;
       }
 
-      // 2. Kick off GPU upload -----------------------------------------
+      // 3. Kick off GPU upload -----------------------------------------
       nextEnt.gsplat.asset = asset;
       if (assetError) throw assetError;
 
-      // 3. Wait for first sorter update (splat renderer ready) ----------
+      // 4. Wait for first sorter update (splat renderer ready) ----------
       await new Promise<void>((resolve) => {
         const maxRetries = 5;
         let tries = 0;
@@ -500,7 +511,7 @@ function initDynamicLoader(pcApp: any): void {
         return;
       }
 
-      // 4. Keep both models for the first rendered frame, then retire old
+      // 5. Keep both models for the first rendered frame, then retire old
       await new Promise<void>((resolve) => {
         app.once('frameend', () => {
           if (myToken !== currentToken) {
