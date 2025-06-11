@@ -1,16 +1,15 @@
 # Latent-Viewer – Gaussian-Splat & SOGS demo
 
 Latent-Viewer is a **zero-boilerplate** PlayCanvas setup for viewing
-3-D Gaussian Splat (GSplat) scenes in the browser.  It supports:
+3-D Gaussian Splat (GSplat) scenes in the browser. It supports:
 
-* Desktop & mobile orbit / pan / zoom camera (inertia, touch, wheel …)
-* Optional WebXR controller + teleport navigation
-* Both **raw *.ply** splats and **compressed SOGS** assets
-* Production builds tree-shake and minify dependencies and app code (~2.2 MB uncompressed JS; ~650 kB gzipped JS; scene data loaded on demand)
+- Desktop & mobile orbit / pan / zoom camera (inertia, touch, wheel …)
+- Optional WebXR controller + teleport navigation
+- Both **raw \*.ply** splats and **compressed SOGS** assets
+- Production builds tree-shake and minify dependencies and app code (~2.2 MB uncompressed JS; ~650 kB gzipped JS; scene data loaded on demand)
 
 Everything is declaratively described in **HTML** via
 [`@playcanvas/web-components`](https://github.com/playcanvas/playcanvas-web-components).
-
 
 ---
 
@@ -49,9 +48,8 @@ to speed up the process.
 
 ### Requirements
 
-* **Node 18 LTS** or newer (uses modern `import`/`export`)
-* Git (for cloning the repository)
-
+- **Node 18 LTS** or newer (uses modern `import`/`export`)
+- Git (for cloning the repository)
 
 ---
 
@@ -80,7 +78,6 @@ latent-viewer/
   prototyping.
 ```
 
-
 ---
 
 ## How it works
@@ -88,6 +85,7 @@ latent-viewer/
 1. **Web components** – `<pc-app>`, `<pc-entity>`, and `<pc-splat>` auto-create the PlayCanvas application and scene graph. Models are loaded dynamically via the `switchModel()` function rather than static asset tags.
 
 2. **Dynamic loader** – `switchModel(dir)` in `public/main.ts`:
+
    - Fetches and sanity-checks `meta.json`
    - Loads the GSplat JSON and texture assets via the PlayCanvas asset pipeline
    - Waits for the internal sorter update and a frame-end before swapping models
@@ -96,7 +94,6 @@ latent-viewer/
 3. **Helper scripts** – Orbit camera, XR controllers, and teleport scripts are ES modules in `playcanvas/scripts/esm/`. They are imported and registered in `public/main.ts` (via `pc.registerScript`) so the `<pc-script name="cameraControls">`, `<pc-script name="xrControllers">`, and `<pc-script name="xrNavigation">` tags work out-of-the-box.
 
 4. **Bundling** – Vite tree-shakes the PlayCanvas engine, helper scripts, React, Konva, and application code. Unused code is removed automatically for optimal production builds.
-
 
 ---
 
@@ -112,7 +109,6 @@ To add your own GSplat datasets or raw `.ply` files:
    ```
 
 3. Use the latent grid UI to navigate to the cell corresponding to your new model and load it.
-
 
 ---
 
@@ -151,16 +147,16 @@ npm run preview    # Serves the ./dist folder
 ### How Model Switching Works
 
 The **2024-05** rewrite introduced a robust, cross-browser loader that keeps
-scrubbing fluid while guaranteeing zero flicker and *at most two* GSplat
+scrubbing fluid while guaranteeing zero flicker and _at most two_ GSplat
 entities in the scene:
 
 1. **Debounced requests** – the latent-space grid calls `switchModel()` via a
-   180 ms trailing-edge debounce so only the cell you *end up on* actually
+   180 ms trailing-edge debounce so only the cell you _end up on_ actually
    initiates a load.
 
-2. **Token-based cancellation** – every call increments `currentToken`.  All
+2. **Token-based cancellation** – every call increments `currentToken`. All
    asynchronous awaits (download → GPU upload → first draw) compare their
-   captured token against the global one and self-abort if superseded.  This
+   captured token against the global one and self-abort if superseded. This
    avoids race conditions that previously left duplicates on screen.
 
 3. **Live + pending entities** – the application keeps exactly two
@@ -182,7 +178,7 @@ entities in the scene:
    sometimes pauses rendering when nothing moves) immediately shows the new
    scene.
 
-With this pipeline *Chrome, Safari and Firefox* now all scrub smoothly – no
+With this pipeline _Chrome, Safari and Firefox_ now all scrub smoothly – no
 flash of empty background, no lingering duplicates.
 
 ---
@@ -190,16 +186,16 @@ flash of empty background, no lingering duplicates.
 ## Interactive Latent Grid
 
 This project includes an interactive latent grid component (`LatentGrid.tsx`)
-that provides a miniature *latent-space map* for switching between Gaussian
-Splat models.  Users simply drag the handle across the grid; the viewer swaps
+that provides a miniature _latent-space map_ for switching between Gaussian
+Splat models. Users simply drag the handle across the grid; the viewer swaps
 to the model located at that cell.
 
 Runtime characteristics:
 
-* Emits a *single* debounced load request once the handle settles (≈180 ms).
-* Zero allocations on the hot `pointermove` path → stable 60 fps even on
+- Emits a _single_ debounced load request once the handle settles (≈180 ms).
+- Zero allocations on the hot `pointermove` path → stable 60 fps even on
   mobile.
-* Works with mouse, touch and stylus out of the box via `react-konva`.
+- Works with mouse, touch and stylus out of the box via `react-konva`.
 
 ### Model Structure
 
@@ -216,6 +212,7 @@ compressed_head_models_512_16x16/
 ```
 
 Each model directory contains the necessary SOGS files:
+
 - `meta.json` — model metadata
 - `means_l.webp`, `means_u.webp` — mean positions
 - `quats.webp` — quaternions for rotation
@@ -231,6 +228,32 @@ The grid is constructed with rows representing one dimension of the latent space
 ## Development Workflow
 
 When working on this project, use the following commands to streamline your workflow:
+
+### Linting & formatting
+
+The codebase uses **ESLint** for catching bugs and **Prettier** for automatic
+code formatting. Both are fully configured in `package.json` and run on every
+commit via a Husky _pre-commit_ hook.
+
+Running them manually:
+
+```bash
+# Show lint warnings & errors (no writes)
+npm run lint
+
+# Auto-fix lint problems where possible
+npm run lint:fix
+
+# Format the entire repo with Prettier
+npm run format
+
+# Verify that everything *is* formatted (CI-friendly)
+npm run format:check
+```
+
+The default **pre-commit** hook executes `npm run lint` followed by
+`npm run format:check` and will prevent the commit if either step fails. You
+can skip the hook with `git commit --no-verify` (not recommended).
 
 ### Development Server
 
@@ -255,11 +278,13 @@ npm run build
 ```
 
 This command:
+
 1. Runs the TypeScript compiler to check types
 2. Builds the project with Vite for production
 3. Outputs optimized files to the `./dist` directory
 
 The build process automatically:
+
 - Tree-shakes unused code
 - Minifies JavaScript and CSS
 - Optimizes assets
@@ -274,4 +299,3 @@ npm run preview
 After building, use this command to preview the production build locally before deployment.
 
 ---
-

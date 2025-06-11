@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  root: 'public',             // serve index.html from /public
+  root: 'public', // serve index.html from /public
   server: { port: 5173 },
   build: {
     outDir: '../dist', // optional "npm run build"
@@ -13,5 +13,5 @@ export default defineConfig({
       },
     },
   },
-  plugins: [react()]
+  plugins: [react()],
 });

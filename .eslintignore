@@ -1,0 +1,18 @@
+# Paths that should never be linted by ESLint. Keeping this list narrow
+# avoids accidentally masking issues while still preventing the linter
+# from trawling huge generated or third-party blobs.
+
+# Package manager artefacts
+node_modules
+
+# Build output
+dist
+
+# Compressed archive of the viewer (distributed binary)
+viewer.zip
+
+# Bundled or minified vendor files that live alongside our sources
+*.min.js
+
+# Third-party bundles copied verbatim into the public folder
+public/**/*.js

@@ -9,8 +9,10 @@
     "preview": "vite preview",
     "get-test-data": "node scripts/get-test-data.js",
     "tsc": "tsc --noEmit",
-    "lint": "eslint \"**/*.{js,jsx,ts,tsx}\"",
-    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,css,html,json,md}\"",
+    "lint": "eslint --cache --ext .js,.jsx,.ts,.tsx,.mjs,.cjs src public scripts",
+    "lint:fix": "npm run lint -- --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "prepare": "husky install"
   },
   "keywords": [],

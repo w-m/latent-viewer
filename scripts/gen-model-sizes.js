@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const baseDir = path.resolve(__dirname, '../public/compressed_head_models_512_16x16');
+const baseDir = path.resolve(
+  __dirname,
+  '../public/compressed_head_models_512_16x16'
+);
 const result = {};
 let total = 0;
 if (fs.existsSync(baseDir)) {
