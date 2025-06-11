@@ -1,5 +1,10 @@
-node_modules/
+node_modules
 dist/
+
+.husky/_
+.eslintcache
+
 *.log
+
 .DS_Store
 Thumbs.db

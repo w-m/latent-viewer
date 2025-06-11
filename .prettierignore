@@ -1,0 +1,7 @@
+# Exclude huge generated / third-party blobs so Prettier only touches the
+# code we author.
+node_modules
+viewer.zip
+dist
+public/**/*.js
+*.min.js

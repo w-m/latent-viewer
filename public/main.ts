@@ -121,7 +121,7 @@ let loadingIndicatorTimer: number | null = null;
 function createLoadingIndicator(container: HTMLElement) {
   // Don't try to find statusArea here - it might not exist yet
   // Instead, we'll look for it when we actually need to show/hide the indicator
-  
+
   // Create fallback loading indicator as before
   if (loadingDiv) return;
   loadingDiv = document.createElement('div');
@@ -131,7 +131,8 @@ function createLoadingIndicator(container: HTMLElement) {
     padding: '4px 12px',
     background: 'rgba(0,0,0,0.6)',
     color: '#fff',
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily:
+      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '13px',
     fontWeight: '400',
     borderRadius: '9999px',
@@ -148,7 +149,7 @@ function setLoadingIndicator(visible: boolean) {
   if (!statusArea) {
     statusArea = document.getElementById('statusArea') as HTMLDivElement | null;
   }
-  
+
   if (statusArea) {
     if (visible) {
       statusArea.textContent = 'Loading model...';
@@ -169,20 +170,20 @@ function initApplication(): void {
   if (hasInitialized) {
     return;
   }
-  
+
   hasInitialized = true;
-  
+
   const pcApp = document.querySelector('pc-app');
   if (!pcApp) {
     console.error('<pc-app> not found in DOM');
     return;
   }
-  
+
   // Initialize React UI immediately - don't wait for pcApp.ready
   initializeReactGrid();
   initFullscreenButton();
   initSettingsButton();
-  
+
   // Wait for the PC app to be ready
   pcApp.addEventListener(
     'ready',
@@ -199,7 +200,9 @@ function initApplication(): void {
       // Background color picker hookup
       // ------------------------------------------------------------
 
-      const colorInput = document.getElementById('bgColorPicker') as HTMLInputElement | null;
+      const colorInput = document.getElementById(
+        'bgColorPicker'
+      ) as HTMLInputElement | null;
       if (colorInput) {
         const applyColor = (hex: string) => {
           // Converts #RRGGBB -> pc.Color
@@ -208,7 +211,9 @@ function initApplication(): void {
           const r = parseInt(clean.substring(0, 2), 16) / 255;
           const g = parseInt(clean.substring(2, 4), 16) / 255;
           const b = parseInt(clean.substring(4, 6), 16) / 255;
-          const camEnt = app.root.findByName('camera') as (pc.Entity & { camera?: pc.CameraComponent }) | null;
+          const camEnt = app.root.findByName('camera') as
+            | (pc.Entity & { camera?: pc.CameraComponent })
+            | null;
           if (camEnt && camEnt.camera) {
             camEnt.camera.clearColor.set(r, g, b, 1);
           }
@@ -224,7 +229,7 @@ function initApplication(): void {
 
       // --- dynamic GSplat loader
       // Loading indicator is created in initializeReactGrid now.
-      
+
       // --- dynamic GSplat loader
       initDynamicLoader(pcApp as any); // TypeScript doesn't know about custom element types
     },
@@ -244,8 +249,12 @@ function initializeReactGrid(): void {
 
   const gridRef = React.createRef<LatentGridHandle>();
 
-  const downloadBtn = document.getElementById('downloadAllBtn') as HTMLButtonElement | null;
-  const statusDiv = document.getElementById('downloadStatus') as HTMLDivElement | null;
+  const downloadBtn = document.getElementById(
+    'downloadAllBtn'
+  ) as HTMLButtonElement | null;
+  const statusDiv = document.getElementById(
+    'downloadStatus'
+  ) as HTMLDivElement | null;
 
   const updateStatus = () => {
     if (!statusDiv) return;
@@ -334,12 +343,14 @@ function initializeReactGrid(): void {
       }
     });
   }
-  
+
   try {
     const root = createRoot(gridContainer);
 
     // Ensure loading indicator exists under the grid (once)
-    const section = gridContainer.closest('.latent-section') as HTMLElement | null;
+    const section = gridContainer.closest(
+      '.latent-section'
+    ) as HTMLElement | null;
     if (section) {
       createLoadingIndicator(section);
     }
@@ -382,7 +393,9 @@ function initializeReactGrid(): void {
  * Hook up the fullscreen toggle button
  */
 function initFullscreenButton(): void {
-  const btn = document.getElementById('fullscreenBtn') as HTMLButtonElement | null;
+  const btn = document.getElementById(
+    'fullscreenBtn'
+  ) as HTMLButtonElement | null;
   if (!btn) return;
   const container = document.querySelector('.container') as HTMLElement | null;
   btn.addEventListener('click', () => {
@@ -407,24 +420,28 @@ function initFullscreenButton(): void {
  * Hook up the settings button and panel
  */
 function initSettingsButton(): void {
-  const btn = document.getElementById('settingsBtn') as HTMLButtonElement | null;
-  const panel = document.getElementById('settingsPanel') as HTMLDivElement | null;
-  
+  const btn = document.getElementById(
+    'settingsBtn'
+  ) as HTMLButtonElement | null;
+  const panel = document.getElementById(
+    'settingsPanel'
+  ) as HTMLDivElement | null;
+
   if (!btn || !panel) return;
-  
+
   // Toggle settings panel
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     panel.classList.toggle('show');
   });
-  
+
   // Hide panel when clicking elsewhere
   document.addEventListener('click', (e) => {
     if (!panel.contains(e.target as Node) && e.target !== btn) {
       panel.classList.remove('show');
     }
   });
-  
+
   // Handle escape key to close panel
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && panel.classList.contains('show')) {
@@ -465,7 +482,11 @@ function initDynamicLoader(pcApp: any): void {
    * Safely destroy an asset and remove from asset registry
    */
   function destroyAsset(asset: pc.Asset | null): void {
-    if (asset?.resource && typeof asset.resource === 'object' && 'destroy' in asset.resource) {
+    if (
+      asset?.resource &&
+      typeof asset.resource === 'object' &&
+      'destroy' in asset.resource
+    ) {
       (asset.resource as { destroy(): void }).destroy();
     }
     if (asset) app.assets.remove(asset);
@@ -495,9 +516,11 @@ function initDynamicLoader(pcApp: any): void {
     loadingIndicatorTimer = window.setTimeout(() => {
       // Look for statusArea each time we need it
       if (!statusArea) {
-        statusArea = document.getElementById('statusArea') as HTMLDivElement | null;
+        statusArea = document.getElementById(
+          'statusArea'
+        ) as HTMLDivElement | null;
       }
-      
+
       if (statusArea) {
         statusArea.textContent = 'Loading model...';
         statusArea.style.color = '#bbb';
@@ -546,19 +569,21 @@ function initDynamicLoader(pcApp: any): void {
     app.assets.on('error', onAssetError);
 
     try {
-    // 1. Load & sanity-check meta.json (catch both 404 and SPA-fallback)
-    const metaResp = await fetch(url);
-    if (!metaResp.ok) {
-      throw new Error(`Meta file not found for model '${dir}' (HTTP ${metaResp.status})`);
-    }
-    const metaJson = await metaResp.json();
-    if (!metaJson || !metaJson.means) {
-      throw new Error(`Invalid meta.json for model '${dir}' (missing means)`);
-    }
-    asset.data = metaJson;
+      // 1. Load & sanity-check meta.json (catch both 404 and SPA-fallback)
+      const metaResp = await fetch(url);
+      if (!metaResp.ok) {
+        throw new Error(
+          `Meta file not found for model '${dir}' (HTTP ${metaResp.status})`
+        );
+      }
+      const metaJson = await metaResp.json();
+      if (!metaJson || !metaJson.means) {
+        throw new Error(`Invalid meta.json for model '${dir}' (missing means)`);
+      }
+      asset.data = metaJson;
 
-    // 2. Download / decode JSON + buffers -----------------------------
-    await new Promise<void>((resolve, reject) => {
+      // 2. Download / decode JSON + buffers -----------------------------
+      await new Promise<void>((resolve, reject) => {
         asset.once('load', resolve);
         asset.once('error', reject);
         app.assets.load(asset);
@@ -666,9 +691,11 @@ function initDynamicLoader(pcApp: any): void {
       }
       // Look for statusArea each time we need it
       if (!statusArea) {
-        statusArea = document.getElementById('statusArea') as HTMLDivElement | null;
+        statusArea = document.getElementById(
+          'statusArea'
+        ) as HTMLDivElement | null;
       }
-      
+
       if (statusArea) {
         statusArea.textContent = 'Error loading model';
         statusArea.style.color = '#ff6666';
