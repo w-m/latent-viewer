@@ -255,6 +255,19 @@ The default **pre-commit** hook executes `npm run lint` followed by
 `npm run format:check` and will prevent the commit if either step fails. You
 can skip the hook with `git commit --no-verify` (not recommended).
 
+#### Continuous integration (GitHub Actions)
+
+All quality checks also run automatically in GitHub Actions on every _push_
+and _pull-request_ (see `.github/workflows/quality.yml`). The workflow
+executes:
+
+1. `npm run lint` – ESLint warnings/errors.
+2. `npm run format:check` – verify Prettier formatting.
+3. `npm run tsc` – full TypeScript type-checking.
+
+If any step fails the CI status will be red, preventing the merge until the
+issues are fixed.
+
 ### Development Server
 
 ```bash
