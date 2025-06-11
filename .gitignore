@@ -1,6 +1,10 @@
 node_modules
-.DS_Store
+dist/
 
-# Husky generated hooks
 .husky/_
 .eslintcache
+
+*.log
+
+.DS_Store
+Thumbs.db
