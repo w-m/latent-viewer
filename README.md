@@ -79,6 +79,21 @@ VITE_DATA_ROOT=/path/to/your/custom/data
 
 If `VITE_DATA_ROOT` is not set, both the build process and the application will fail with clear error messages telling you exactly what to do.
 
+### CI/CD Builds
+
+For continuous integration environments where you don't want to download 700MB of test data:
+
+```bash
+# Use the CI build script (skips metadata generation)
+npm run build:ci
+
+# Or copy the CI environment file
+cp .env.ci .env
+npm run build
+```
+
+The CI build uses remote data URLs and gracefully handles missing metadata files.
+
 ### Requirements
 
 - **Node 18 LTS** or newer (uses modern `import`/`export`)

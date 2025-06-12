@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node scripts/gen-meta.js && vite",
     "build": "node scripts/gen-meta.js && tsc && vite build",
+    "build:ci": "tsc && vite build",
     "preview": "vite preview",
     "get-test-data": "node scripts/get-test-data.js",
     "tsc": "tsc --noEmit",
