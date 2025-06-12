@@ -8,3 +8,8 @@ dist/
 
 .DS_Store
 Thumbs.db
+
+# Environment variables (except the committed default)
+.env.local
+
+data/
