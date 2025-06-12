@@ -11,90 +11,48 @@ The 3DGS models are rendered with [PlayCanvas engine](https://github.com/playcan
 
 ---
 
-## Quick start
+## Development setup
 
 ```bash
-# 1. Clone the repo & install deps
+# Clone and install
 git clone https://github.com/w-m/latent-viewer.git
 cd latent-viewer
+npm install
 
-# Install dependencies
-npm install        # or pnpm / yarn
+# Configure where models live
+echo "VITE_DATA_ROOT=data/compressed_head_models_512_16x16" > .env  # edit the path if you have your own models
 
-# 2. Start the dev server
-npm run dev        # http://localhost:5173 (auto-reload)
-
-# 3. Build a static bundle (optional)
-npm run build      # outputs to ./dist
-
-# 4. Preview production build
-npm run preview    # serves the ./dist folder
-```
-
-### Download test data (optional)
-
-To experiment with the latent grid using the models from the
-[CGS-GAN](https://fraunhoferhhi.github.io/cgs-gan/) paper, run:
-
-```bash
+# Download the sample dataset (~700\u00a0MB)
 npm run get-test-data
-```
 
-This downloads all 256 folders (711.6&nbsp;MB) of compressed head models into
-the directory specified by `VITE_DATA_ROOT` in your `.env` file. The script fetches files in parallel
-to speed up the process.
+# Start the dev server (http://localhost:5173)
+npm run dev
+```
 
 ---
 
-## Configuration
-
-The latent viewer uses a simple configuration system with a single setting in the `.env` file:
+### Build & preview
 
 ```bash
-# .env
-VITE_DATA_ROOT=data/compressed_head_models_512_16x16
+npm run build      # outputs production files to ./dist
+npm run preview    # serve the built bundle
 ```
 
-### Getting Started
-
-1. The `.env` file is already configured with a sensible default
-2. Run `npm run get-test-data` to download the test data
-3. Run `npm run dev` to start development
-
-### Changing the Data Location
-
-To use a different data directory, edit the `VITE_DATA_ROOT` setting in `.env`:
+### Lint, format & test
 
 ```bash
-# Use a different local directory
-VITE_DATA_ROOT=my-custom-data-folder
-
-# Use an absolute path
-VITE_DATA_ROOT=/path/to/your/custom/data
+npm run lint       # check code quality
+npm run format     # apply Prettier
+npm test           # run unit tests with Vitest
 ```
 
-### Error Handling
+### CI builds
 
-If `VITE_DATA_ROOT` is not set, both the build process and the application will fail with clear error messages telling you exactly what to do.
-
-### CI/CD Builds
-
-For continuous integration environments where you don't want to download 700MB of test data:
-
-```bash
-# Use the CI build script (skips metadata generation)
-npm run build:ci
-
-# Or copy the CI environment file
-cp .env.ci .env
-npm run build
-```
-
-The CI build uses remote data URLs and gracefully handles missing metadata files.
+Use `npm run build:ci` or copy `.env.ci` to `.env` for remote data to avoid downloading the dataset in CI.
 
 ### Requirements
 
-- **Node 18 LTS** or newer (uses modern `import`/`export`)
+- **Node 18 LTS** or newer
 
 ---
 
