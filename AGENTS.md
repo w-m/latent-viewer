@@ -35,6 +35,14 @@ ensures smooth transitions:
 
 This keeps memory usage bounded and avoids flicker when scrubbing the grid.
 
+## Relative paths
+
+The page should support both loading from it being the root site, but also should
+support being included in a iframe in another page. An example is in the root dir,
+in index.html, which includes the dist/index.html. It's important that the paths
+(both for model loading and for loading the assets JS code) work for both of
+these cases.
+
 ## Development
 
 - Node 18+. `npm run dev` starts Vite; `npm run build` checks types and builds.

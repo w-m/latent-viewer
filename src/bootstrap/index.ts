@@ -26,8 +26,11 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LatentGrid, LatentGridHandle } from '../components/LatentGrid';
 
-// Configurable data root - must be set in .env file
-const DATA_ROOT = (import.meta as any).env.VITE_DATA_ROOT;
+// Configurable data root – resolved relative to index.html
+const DATA_ROOT = new URL(
+  (import.meta as any).env.VITE_DATA_ROOT,
+  document.baseURI
+).href.replace(/\/$/, '');
 
 if (!DATA_ROOT) {
   const errorMsg = `
