@@ -19,7 +19,7 @@ git clone https://github.com/w-m/latent-viewer.git
 cd latent-viewer
 npm install
 
-# Configure where models live
+# Configure where models live, relative to public/
 echo "VITE_DATA_ROOT=data/compressed_head_models_512_16x16" > .env  # edit the path if you have your own models
 
 # Download the sample dataset (~700\u00a0MB)
@@ -56,33 +56,6 @@ Use `npm run build:ci` or copy `.env.ci` to `.env` for remote data to avoid down
 
 ---
 
-## Project layout
-
-```
-latent-viewer/
-├── public/                         # Static assets served by Vite
-│   ├── index.html                  # Application shell: latent grid + PlayCanvas canvas
-│   ├── main.ts                     # Bootstrap & dynamic loader (switchModel, UI hookups)
-│   ├── head.ply                    # Example raw GSplat dataset (legacy)
-│   ├── compressed_head_models_512_16x16/  # Example compressed SOGS datasets
-│   ├── grid-demo.html              # Standalone latent-grid prototype
-│   ├── grid-demo.tsx               # Source for grid-demo.html
-│   └── LatentGrid.tsx              # React component for the interactive latent grid
-├── src/                    # Type definitions
-├── dist/              # Production build (generated)
-├── package.json       # Dependencies & scripts
-├── vite.config.js     # Vite zero-config with custom root/outDir
-└── README.md          # You are here
-
-### Demo pages
-
-* **`/index.html`** – full viewer: latent grid + PlayCanvas canvas.
-* **`/grid-demo.html`** – standalone latent-grid demo used during early
-  prototyping.
-```
-
----
-
 ## How it works
 
 1. **Web components** – `<pc-app>`, `<pc-entity>`, and `<pc-splat>` auto-create the PlayCanvas application and scene graph. Models are loaded dynamically via the `switchModel()` function rather than static asset tags.
@@ -97,22 +70,6 @@ latent-viewer/
 3. **Helper scripts** – Orbit camera, XR controllers, and teleport scripts are ES modules in `playcanvas/scripts/esm/`. They are imported and registered in `public/main.ts` (via `pc.registerScript`) so the `<pc-script name="cameraControls">`, `<pc-script name="xrControllers">`, and `<pc-script name="xrNavigation">` tags work out-of-the-box.
 
 4. **Bundling** – Vite tree-shakes the PlayCanvas engine, helper scripts, React, Konva, and application code. Unused code is removed automatically for optimal production builds.
-
----
-
-## Adding your own scene
-
-To add your own GSplat datasets or raw `.ply` files:
-
-1. Copy your raw `*.ply` file or a SOGS folder (containing `meta.json` and texture files) into the `public/` directory (e.g. under `compressed_head_models_512_16x16/`).
-2. Generate `latent-viewer-meta.json` in the data root and restart the dev server:
-
-   ```bash
-   node scripts/gen-meta.js /path/to/your/data
-   npm run dev
-   ```
-
-3. Use the latent grid UI to navigate to the cell corresponding to your new model and load it.
 
 ---
 
@@ -213,90 +170,6 @@ The grid is constructed with rows representing one dimension of the latent space
 
 ---
 
-## Development Workflow
+### License
 
-When working on this project, use the following commands to streamline your workflow:
-
-### Linting & formatting
-
-The codebase uses **ESLint** for catching bugs and **Prettier** for automatic
-code formatting. Both are fully configured in `package.json` and run on every
-commit via a Husky _pre-commit_ hook.
-
-Running them manually:
-
-```bash
-# Show lint warnings & errors (no writes)
-npm run lint
-
-# Auto-fix lint problems where possible
-npm run lint:fix
-
-# Format the entire repo with Prettier
-npm run format
-
-# Verify that everything *is* formatted (CI-friendly)
-npm run format:check
-```
-
-The default **pre-commit** hook executes `npm run lint` followed by
-`npm run format:check` and will prevent the commit if either step fails. You
-can skip the hook with `git commit --no-verify` (not recommended).
-
-#### Continuous integration (GitHub Actions)
-
-All quality checks also run automatically in GitHub Actions on every _push_
-and _pull-request_ (see `.github/workflows/quality.yml`). The workflow
-executes:
-
-1. `npm run lint` – ESLint warnings/errors.
-2. `npm run format:check` – verify Prettier formatting.
-3. `npm run tsc` – full TypeScript type-checking.
-
-If any step fails the CI status will be red, preventing the merge until the
-issues are fixed.
-
-### Development Server
-
-```bash
-npm run dev
-```
-
-This starts the Vite development server with hot module reloading. The server watches for changes in your files and automatically refreshes the browser. The dev server will be available at http://localhost:5173.
-
-### Type Checking
-
-```bash
-npm run tsc
-```
-
-Run TypeScript type checking without emitting output files. This is useful to validate your TypeScript code while developing.
-
-### Building for Production
-
-```bash
-npm run build
-```
-
-This command:
-
-1. Runs the TypeScript compiler to check types
-2. Builds the project with Vite for production
-3. Outputs optimized files to the `./dist` directory
-
-The build process automatically:
-
-- Tree-shakes unused code
-- Minifies JavaScript and CSS
-- Optimizes assets
-- Generates production-ready files
-
-### Testing Production Build
-
-```bash
-npm run preview
-```
-
-After building, use this command to preview the production build locally before deployment.
-
----
+This repository is licensed under the Apache 2.0 license.
