@@ -63,9 +63,9 @@ Use `npm run build:ci` or copy `.env.ci` to `.env` for remote data to avoid down
 2. **Dynamic loader** – `switchModel(dir)` in `public/main.ts`:
 
    - Fetches and sanity-checks `meta.json`
-   - Loads the GSplat JSON and texture assets via the PlayCanvas asset pipeline
+   - Loads the SOG compressed JSON and texture assets via the PlayCanvas asset pipeline
    - Waits for the internal sorter update and a frame-end before swapping models
-   - Uses token-based cancellation and live/pending-entity logic to guarantee zero flicker and at most two GSplat entities in memory.
+   - Uses token-based cancellation and live/pending-entity logic to guarantee zero flicker and at most two 3DGS entities in memory.
 
 3. **Helper scripts** – Orbit camera, XR controllers, and teleport scripts are ES modules in `playcanvas/scripts/esm/`. They are imported and registered in `public/main.ts` (via `pc.registerScript`) so the `<pc-script name="cameraControls">`, `<pc-script name="xrControllers">`, and `<pc-script name="xrNavigation">` tags work out-of-the-box.
 
@@ -92,7 +92,7 @@ This project includes an enhanced model switching implementation that eliminates
 ### How Model Switching Works
 
 The **2024-05** rewrite introduced a robust, cross-browser loader that keeps
-scrubbing fluid while guaranteeing zero flicker and _at most two_ GSplat
+scrubbing fluid while guaranteeing zero flicker and _at most two_ 3DGS
 entities in the scene:
 
 1. **Debounced requests** – the latent-space grid calls `switchModel()` via a
@@ -131,8 +131,8 @@ flash of empty background, no lingering duplicates.
 ## Interactive Latent Grid
 
 This project includes an interactive latent grid component (`LatentGrid.tsx`)
-that provides a miniature _latent-space map_ for switching between Gaussian
-Splat models. Users simply drag the handle across the grid; the viewer swaps
+that provides a miniature _latent-space map_ for switching between 3DGS models.
+Users simply drag the handle across the grid; the viewer swaps
 to the model located at that cell.
 
 Runtime characteristics:
@@ -156,7 +156,7 @@ compressed_head_models_512_16x16/
   └── model_c15_r15/
 ```
 
-Each model directory contains the necessary SOGS files:
+Each model directory contains the necessary compressed SOG files:
 
 - `meta.json` — model metadata
 - `means_l.webp`, `means_u.webp` — mean positions
