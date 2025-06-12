@@ -28,7 +28,8 @@ import { LatentGrid, LatentGridHandle } from './LatentGrid';
 
 // Configurable data root (absolute URL or relative path)
 const DATA_ROOT =
-  (import.meta as any).env.VITE_DATA_ROOT || 'compressed_head_models_512_16x16';
+  (import.meta as any).env.VITE_DATA_ROOT ||
+  'data/compressed_head_models_512_16x16';
 
 // Filled after loading latent-viewer-meta.json
 let MODEL_SIZES: Record<string, number> = {};

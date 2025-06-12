@@ -26,9 +26,8 @@ module.exports = [
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
-      '**/viewer.zip',
       '**/*.min.js',
-      'public/**/*.js',
+      'public/data/**',
     ],
   },
 
