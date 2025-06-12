@@ -1,15 +1,11 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { getAbsoluteDataPath } = require('../latent-viewer.config.js');
 
 const baseUrl =
   'https://fraunhoferhhi.github.io/cgs-gan/viewer/compressed_head_models_512_16x16';
-const outRoot = path.join(
-  __dirname,
-  '..',
-  'public',
-  'compressed_head_models_512_16x16'
-);
+const outRoot = getAbsoluteDataPath();
 
 const files = [
   'means_l.webp',

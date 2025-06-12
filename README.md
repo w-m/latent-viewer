@@ -43,20 +43,45 @@ npm run get-test-data
 ```
 
 This downloads all 256 folders (711.6&nbsp;MB) of compressed head models into
-`public/compressed_head_models_512_16x16/`. The script fetches files in parallel
+the directory specified by `VITE_DATA_ROOT` in your `.env` file. The script fetches files in parallel
 to speed up the process.
 
-Alternatively you can point the viewer at the remote dataset without
-downloading anything by setting the `VITE_DATA_ROOT` environment variable:
+---
+
+## Configuration
+
+The latent viewer uses a simple configuration system with a single setting in the `.env` file:
 
 ```bash
-VITE_DATA_ROOT=https://fraunhoferhhi.github.io/cgs-gan/viewer/compressed_head_models_512_16x16 npm run dev
+# .env
+VITE_DATA_ROOT=data/compressed_head_models_512_16x16
 ```
+
+### Getting Started
+
+1. The `.env` file is already configured with a sensible default
+2. Run `npm run get-test-data` to download the test data
+3. Run `npm run dev` to start development
+
+### Changing the Data Location
+
+To use a different data directory, edit the `VITE_DATA_ROOT` setting in `.env`:
+
+```bash
+# Use a different local directory
+VITE_DATA_ROOT=my-custom-data-folder
+
+# Use an absolute path
+VITE_DATA_ROOT=/path/to/your/custom/data
+```
+
+### Error Handling
+
+If `VITE_DATA_ROOT` is not set, both the build process and the application will fail with clear error messages telling you exactly what to do.
 
 ### Requirements
 
 - **Node 18 LTS** or newer (uses modern `import`/`export`)
-- Git (for cloning the repository)
 
 ---
 

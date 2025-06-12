@@ -1,10 +1,19 @@
 const fs = require('fs');
 const path = require('path');
+const {
+  getAbsoluteDataPath,
+  getMetadataPath,
+} = require('../latent-viewer.config.js');
 
-const dataRoot = path.resolve(
-  process.argv[2] ||
-    path.join(__dirname, '../public/compressed_head_models_512_16x16')
-);
+const dataRoot = getAbsoluteDataPath();
+
+if (!fs.existsSync(dataRoot)) {
+  console.log('❌ Data directory does not exist:', dataRoot);
+  console.log('');
+  console.log('Please run: npm run get-test-data');
+  console.log('to download the test data to the configured location.');
+  process.exit(1);
+}
 
 const cellBytes = {};
 let total = 0;
@@ -33,8 +42,5 @@ const out = {
   totalBytes: total,
 };
 
-fs.writeFileSync(
-  path.join(dataRoot, 'latent-viewer-meta.json'),
-  JSON.stringify(out, null, 2)
-);
-console.log(`Generated ${path.join(dataRoot, 'latent-viewer-meta.json')}`);
+fs.writeFileSync(getMetadataPath(), JSON.stringify(out, null, 2));
+console.log(`Generated ${getMetadataPath()}`);

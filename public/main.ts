@@ -26,10 +26,22 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LatentGrid, LatentGridHandle } from './LatentGrid';
 
-// Configurable data root (absolute URL or relative path)
-const DATA_ROOT =
-  (import.meta as any).env.VITE_DATA_ROOT ||
-  'data/compressed_head_models_512_16x16';
+// Configurable data root - must be set in .env file
+const DATA_ROOT = (import.meta as any).env.VITE_DATA_ROOT;
+
+if (!DATA_ROOT) {
+  const errorMsg = `
+❌ VITE_DATA_ROOT is not configured!
+
+Please set VITE_DATA_ROOT in your .env file, for example:
+  VITE_DATA_ROOT=data/compressed_head_models_512_16x16
+
+Then run: npm run get-test-data
+`;
+  console.error(errorMsg);
+  document.body.innerHTML = `<pre style="padding: 20px; color: red; font-family: monospace;">${errorMsg}</pre>`;
+  throw new Error('VITE_DATA_ROOT not configured');
+}
 
 // Filled after loading latent-viewer-meta.json
 let MODEL_SIZES: Record<string, number> = {};
@@ -43,9 +55,13 @@ async function loadMetadata(): Promise<void> {
     if (json && typeof json === 'object') {
       MODEL_SIZES = json.cellBytes || {};
       TOTAL_MODEL_BYTES = json.totalBytes || 0;
+      console.log(
+        `Loaded metadata: ${Object.keys(MODEL_SIZES).length} models, ${(TOTAL_MODEL_BYTES / 1024 / 1024).toFixed(1)} MB total`
+      );
     }
   } catch (err) {
     console.error('Failed to load metadata', err);
+    console.warn('Cache progress will not be available');
   }
 }
 

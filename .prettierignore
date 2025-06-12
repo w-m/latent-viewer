@@ -3,4 +3,4 @@
 node_modules
 dist
 *.min.js
-public/data
+data
