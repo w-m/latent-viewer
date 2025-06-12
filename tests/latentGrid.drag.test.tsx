@@ -2,12 +2,63 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect } from 'vitest';
+
+// Mock react-konva components to avoid canvas dependency issues in CI
+vi.mock('react-konva', () => {
+  const make = (type: string) => {
+    return ({ children, ...props }: any) => {
+      const dataProps: Record<string, any> = { 'data-konva-type': type };
+      if (props.fill) dataProps['data-fill'] = props.fill;
+      if (props.name) dataProps['data-name'] = props.name;
+
+      // Use React.createElement directly since React is imported at the top
+      return (React as any).createElement('div', dataProps, children);
+    };
+  };
+  return {
+    Stage: make('Stage'),
+    Layer: make('Layer'),
+    Rect: make('Rect'),
+    Line: make('Line'),
+    Circle: make('Circle'),
+    Group: make('Group'),
+  };
+});
+
+// Mock Konva to provide the stage functionality the test needs
+const mockIndicatorPosition = { x: 50, y: 50 };
+
+vi.mock('konva', () => ({
+  default: {
+    stages: [
+      {
+        content: document.createElement('div'),
+        findOne: (selector: string) => {
+          if (selector === '.indicatorCore') {
+            return {
+              getAbsolutePosition: () => mockIndicatorPosition,
+            };
+          }
+          return null;
+        },
+      },
+    ],
+    Animation: class {
+      start() {}
+      stop() {}
+    },
+  },
+}));
+
 import Konva from 'konva';
 import { LatentGrid } from '../public/LatentGrid';
 
 function getIndicatorPosition() {
   const stage = Konva.stages[0];
   const circle = stage.findOne('.indicatorCore');
+  if (!circle) {
+    throw new Error('Indicator circle not found');
+  }
   return circle.getAbsolutePosition();
 }
 
