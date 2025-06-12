@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { LatentGrid } from './LatentGrid';
+import { LatentGrid } from '../src/components/LatentGrid';
 
 const rootElem = document.getElementById('app');
 if (!rootElem) throw new Error('#app not found');

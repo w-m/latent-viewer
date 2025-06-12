@@ -72,7 +72,7 @@ vi.mock('konva', () => ({
 }));
 
 import Konva from 'konva';
-import { LatentGrid } from '../public/LatentGrid';
+import { LatentGrid } from '../src/components/LatentGrid';
 
 function getIndicatorPosition() {
   const stage = Konva.stages[0];
