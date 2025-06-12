@@ -41,13 +41,60 @@ npm run get-test-data
 ```
 
 This downloads all 256 folders (711.6&nbsp;MB) of compressed head models into
-`public/compressed_head_models_512_16x16/`. The script fetches files in parallel
+the directory specified by `VITE_DATA_ROOT` in your `.env` file. The script fetches files in parallel
 to speed up the process.
+
+---
+
+## Configuration
+
+The latent viewer uses a simple configuration system with a single setting in the `.env` file:
+
+```bash
+# .env
+VITE_DATA_ROOT=data/compressed_head_models_512_16x16
+```
+
+### Getting Started
+
+1. The `.env` file is already configured with a sensible default
+2. Run `npm run get-test-data` to download the test data
+3. Run `npm run dev` to start development
+
+### Changing the Data Location
+
+To use a different data directory, edit the `VITE_DATA_ROOT` setting in `.env`:
+
+```bash
+# Use a different local directory
+VITE_DATA_ROOT=my-custom-data-folder
+
+# Use an absolute path
+VITE_DATA_ROOT=/path/to/your/custom/data
+```
+
+### Error Handling
+
+If `VITE_DATA_ROOT` is not set, both the build process and the application will fail with clear error messages telling you exactly what to do.
+
+### CI/CD Builds
+
+For continuous integration environments where you don't want to download 700MB of test data:
+
+```bash
+# Use the CI build script (skips metadata generation)
+npm run build:ci
+
+# Or copy the CI environment file
+cp .env.ci .env
+npm run build
+```
+
+The CI build uses remote data URLs and gracefully handles missing metadata files.
 
 ### Requirements
 
 - **Node 18 LTS** or newer (uses modern `import`/`export`)
-- Git (for cloning the repository)
 
 ---
 
@@ -63,7 +110,7 @@ latent-viewer/
 │   ├── grid-demo.html              # Standalone latent-grid prototype
 │   ├── grid-demo.tsx               # Source for grid-demo.html
 │   └── LatentGrid.tsx              # React component for the interactive latent grid
-├── src/                    # Type definitions and generated model-size index
+├── src/                    # Type definitions
 ├── dist/              # Production build (generated)
 ├── package.json       # Dependencies & scripts
 ├── vite.config.js     # Vite zero-config with custom root/outDir
@@ -100,9 +147,10 @@ latent-viewer/
 To add your own GSplat datasets or raw `.ply` files:
 
 1. Copy your raw `*.ply` file or a SOGS folder (containing `meta.json` and texture files) into the `public/` directory (e.g. under `compressed_head_models_512_16x16/`).
-2. Re-generate the model-size index (used for caching and download counters) and restart the dev server:
+2. Generate `latent-viewer-meta.json` in the data root and restart the dev server:
 
    ```bash
+   node scripts/gen-meta.js /path/to/your/data
    npm run dev
    ```
 
