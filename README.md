@@ -168,8 +168,10 @@ Each model directory contains the necessary SOGS files:
 
 The grid is constructed with rows representing one dimension of the latent space and columns representing another. When a user clicks on a cell in the grid, the corresponding model is loaded using the smooth transition mechanism.
 
----
+## LLM usage
 
-### License
+This repo is 100% written by llms - mostly with o3, codex-mini and Claude 4. This includes the test code, slightly defeating the purpose of testing. Proceed with the necessary skepticism about anything related to architecture and code itself.
+
+## License
 
 This repository is licensed under the Apache 2.0 license.
