@@ -11,117 +11,48 @@ The 3DGS models are rendered with [PlayCanvas engine](https://github.com/playcan
 
 ---
 
-## Quick start
+## Development setup
 
 ```bash
-# 1. Clone the repo & install deps
+# Clone and install
 git clone https://github.com/w-m/latent-viewer.git
 cd latent-viewer
+npm install
 
-# Install dependencies
-npm install        # or pnpm / yarn
+# Configure where models live, relative to public/
+echo "VITE_DATA_ROOT=data/compressed_head_models_512_16x16" > .env  # edit the path if you have your own models
 
-# 2. Start the dev server
-npm run dev        # http://localhost:5173 (auto-reload)
-
-# 3. Build a static bundle (optional)
-npm run build      # outputs to ./dist
-
-# 4. Preview production build
-npm run preview    # serves the ./dist folder
-```
-
-### Download test data (optional)
-
-To experiment with the latent grid using the models from the
-[CGS-GAN](https://fraunhoferhhi.github.io/cgs-gan/) paper, run:
-
-```bash
+# Download the sample dataset (~700\u00a0MB)
 npm run get-test-data
-```
 
-This downloads all 256 folders (711.6&nbsp;MB) of compressed head models into
-the directory specified by `VITE_DATA_ROOT` in your `.env` file. The script fetches files in parallel
-to speed up the process.
+# Start the dev server (http://localhost:5173)
+npm run dev
+```
 
 ---
 
-## Configuration
-
-The latent viewer uses a simple configuration system with a single setting in the `.env` file:
+### Build & preview
 
 ```bash
-# .env
-VITE_DATA_ROOT=data/compressed_head_models_512_16x16
+npm run build      # outputs production files to ./dist
+npm run preview    # serve the built bundle
 ```
 
-### Getting Started
-
-1. The `.env` file is already configured with a sensible default
-2. Run `npm run get-test-data` to download the test data
-3. Run `npm run dev` to start development
-
-### Changing the Data Location
-
-To use a different data directory, edit the `VITE_DATA_ROOT` setting in `.env`:
+### Lint, format & test
 
 ```bash
-# Use a different local directory
-VITE_DATA_ROOT=my-custom-data-folder
-
-# Use an absolute path
-VITE_DATA_ROOT=/path/to/your/custom/data
+npm run lint       # check code quality
+npm run format     # apply Prettier
+npm test           # run unit tests with Vitest
 ```
 
-### Error Handling
+### CI builds
 
-If `VITE_DATA_ROOT` is not set, both the build process and the application will fail with clear error messages telling you exactly what to do.
-
-### CI/CD Builds
-
-For continuous integration environments where you don't want to download 700MB of test data:
-
-```bash
-# Use the CI build script (skips metadata generation)
-npm run build:ci
-
-# Or copy the CI environment file
-cp .env.ci .env
-npm run build
-```
-
-The CI build uses remote data URLs and gracefully handles missing metadata files.
+Use `npm run build:ci` or copy `.env.ci` to `.env` for remote data to avoid downloading the dataset in CI.
 
 ### Requirements
 
-- **Node 18 LTS** or newer (uses modern `import`/`export`)
-
----
-
-## Project layout
-
-```
-latent-viewer/
-├── public/                         # Static assets served by Vite
-│   ├── index.html                  # Application shell: latent grid + PlayCanvas canvas
-│   ├── main.ts                     # Bootstrap & dynamic loader (switchModel, UI hookups)
-│   ├── head.ply                    # Example raw GSplat dataset (legacy)
-│   ├── compressed_head_models_512_16x16/  # Example compressed SOGS datasets
-│   ├── grid-demo.html              # Standalone latent-grid prototype
-│   ├── grid-demo.tsx               # Source for grid-demo.html
-│   └── LatentGrid.tsx              # React component for the interactive latent grid
-├── src/                    # Type definitions
-├── dist/              # Production build (generated)
-├── package.json       # Dependencies & scripts
-├── vite.config.js     # Vite zero-config with custom root/outDir
-└── README.md          # You are here
-
-### Demo pages
-
-* **`/index.html`** – full viewer: latent grid + PlayCanvas canvas.
-* **`/grid-demo.html`** – standalone latent-grid demo used during early
-  prototyping.
-```
+- **Node 18 LTS** or newer
 
 ---
 
@@ -139,22 +70,6 @@ latent-viewer/
 3. **Helper scripts** – Orbit camera, XR controllers, and teleport scripts are ES modules in `playcanvas/scripts/esm/`. They are imported and registered in `public/main.ts` (via `pc.registerScript`) so the `<pc-script name="cameraControls">`, `<pc-script name="xrControllers">`, and `<pc-script name="xrNavigation">` tags work out-of-the-box.
 
 4. **Bundling** – Vite tree-shakes the PlayCanvas engine, helper scripts, React, Konva, and application code. Unused code is removed automatically for optimal production builds.
-
----
-
-## Adding your own scene
-
-To add your own GSplat datasets or raw `.ply` files:
-
-1. Copy your raw `*.ply` file or a SOGS folder (containing `meta.json` and texture files) into the `public/` directory (e.g. under `compressed_head_models_512_16x16/`).
-2. Generate `latent-viewer-meta.json` in the data root and restart the dev server:
-
-   ```bash
-   node scripts/gen-meta.js /path/to/your/data
-   npm run dev
-   ```
-
-3. Use the latent grid UI to navigate to the cell corresponding to your new model and load it.
 
 ---
 
@@ -253,92 +168,10 @@ Each model directory contains the necessary SOGS files:
 
 The grid is constructed with rows representing one dimension of the latent space and columns representing another. When a user clicks on a cell in the grid, the corresponding model is loaded using the smooth transition mechanism.
 
----
+## LLM usage
 
-## Development Workflow
+This repo is 100% written by llms - mostly with o3, codex-mini and Claude 4. This includes the test code, slightly defeating the purpose of testing. Proceed with the necessary skepticism about anything related to architecture and code itself.
 
-When working on this project, use the following commands to streamline your workflow:
+## License
 
-### Linting & formatting
-
-The codebase uses **ESLint** for catching bugs and **Prettier** for automatic
-code formatting. Both are fully configured in `package.json` and run on every
-commit via a Husky _pre-commit_ hook.
-
-Running them manually:
-
-```bash
-# Show lint warnings & errors (no writes)
-npm run lint
-
-# Auto-fix lint problems where possible
-npm run lint:fix
-
-# Format the entire repo with Prettier
-npm run format
-
-# Verify that everything *is* formatted (CI-friendly)
-npm run format:check
-```
-
-The default **pre-commit** hook executes `npm run lint` followed by
-`npm run format:check` and will prevent the commit if either step fails. You
-can skip the hook with `git commit --no-verify` (not recommended).
-
-#### Continuous integration (GitHub Actions)
-
-All quality checks also run automatically in GitHub Actions on every _push_
-and _pull-request_ (see `.github/workflows/quality.yml`). The workflow
-executes:
-
-1. `npm run lint` – ESLint warnings/errors.
-2. `npm run format:check` – verify Prettier formatting.
-3. `npm run tsc` – full TypeScript type-checking.
-
-If any step fails the CI status will be red, preventing the merge until the
-issues are fixed.
-
-### Development Server
-
-```bash
-npm run dev
-```
-
-This starts the Vite development server with hot module reloading. The server watches for changes in your files and automatically refreshes the browser. The dev server will be available at http://localhost:5173.
-
-### Type Checking
-
-```bash
-npm run tsc
-```
-
-Run TypeScript type checking without emitting output files. This is useful to validate your TypeScript code while developing.
-
-### Building for Production
-
-```bash
-npm run build
-```
-
-This command:
-
-1. Runs the TypeScript compiler to check types
-2. Builds the project with Vite for production
-3. Outputs optimized files to the `./dist` directory
-
-The build process automatically:
-
-- Tree-shakes unused code
-- Minifies JavaScript and CSS
-- Optimizes assets
-- Generates production-ready files
-
-### Testing Production Build
-
-```bash
-npm run preview
-```
-
-After building, use this command to preview the production build locally before deployment.
-
----
+This repository is licensed under the Apache 2.0 license.
