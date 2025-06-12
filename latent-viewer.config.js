@@ -24,7 +24,7 @@ function getDataRoot() {
 }
 
 function getAbsoluteDataPath() {
-  return path.resolve(__dirname, getDataRoot());
+  return path.resolve(__dirname, 'public', getDataRoot());
 }
 
 function getMetadataPath() {

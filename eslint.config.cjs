@@ -23,7 +23,12 @@ const compat = new FlatCompat({
 module.exports = [
   // Ignore patterns (replaces .eslintignore)
   {
-    ignores: ['**/node_modules/**', '**/dist/**', '**/*.min.js', 'data/**'],
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/*.min.js',
+      'public/data/**',
+    ],
   },
 
   // Base configuration for JavaScript files
