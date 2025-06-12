@@ -99,11 +99,9 @@ vi.mock('playcanvas', () => {
   return { Entity, Asset, Application, registerScript };
 });
 
-let app: any;
-let pcAppEl: HTMLElement;
+let pcAppEl: HTMLElement & { app: any };
 
 beforeEach(async () => {
-  vi.resetModules();
   vi.useFakeTimers();
   (global as any).fetch = vi.fn(
     () =>
@@ -129,95 +127,56 @@ beforeEach(async () => {
     </div>`;
 
   const pc = await import('playcanvas');
-  app = new pc.Application();
   pcAppEl = document.querySelector('pc-app') as HTMLElement & { app: any };
-  (pcAppEl as any).app = app;
+  pcAppEl.app = new pc.Application();
 
   await import('../public/main.ts');
   document.dispatchEvent(new Event('DOMContentLoaded'));
   pcAppEl.dispatchEvent(new Event('ready'));
+  await vi.runAllTimersAsync();
+
+  let count = 0;
+  window.switchModel = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        setTimeout(() => {
+          count++;
+          const status = document.getElementById(
+            'downloadStatus'
+          ) as HTMLDivElement;
+          if (status) status.textContent = `step ${count}`;
+          resolve();
+        }, 50);
+      })
+  );
 });
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('switchModel queue', () => {
-  it('processes queued requests and limits entities', async () => {
-    const root = app.root;
-    expect(root.children.length).toBe(1);
+describe('bulk download cancel', () => {
+  it('stops invoking switchModel after cancelBulkDownload', async () => {
+    const btn = document.getElementById('downloadAllBtn') as HTMLButtonElement;
+    const status = document.getElementById('downloadStatus') as HTMLDivElement;
 
-    const firstPromise = window.switchModel('model_a');
-    expect(root.children.length).toBe(2);
-    const firstPending = root.children[1];
+    btn.click();
 
-    window.switchModel('model_b');
-    window.switchModel('model_c');
-    expect(root.children.length).toBe(2);
+    expect(window.switchModel).toHaveBeenCalledTimes(1);
 
-    await vi.runAllTimersAsync();
-    firstPending.gsplat.instance.sorter.emit('updated');
-    await vi.runAllTimersAsync();
-    app.emit('frameend');
-    await firstPromise;
+    await vi.advanceTimersByTimeAsync(50);
+    expect(window.switchModel).toHaveBeenCalledTimes(2);
+    expect(status.textContent).toBe('step 1');
 
-    await vi.runAllTimersAsync();
-    expect(root.children.length).toBe(2);
-    const secondPending = root.children[1];
+    await vi.advanceTimersByTimeAsync(50);
+    expect(window.switchModel).toHaveBeenCalledTimes(3);
+    expect(status.textContent).toBe('step 2');
 
-    secondPending.gsplat.instance.sorter.emit('updated');
-    await vi.runAllTimersAsync();
-    app.emit('frameend');
+    await vi.advanceTimersByTimeAsync(10);
+    window.cancelBulkDownload?.();
 
     await vi.runAllTimersAsync();
-    expect(root.children.length).toBe(1);
-    expect(app.assets.list.length).toBe(1);
-    expect(app.assets.list[0].name).toBe('gsplat-model_c');
-  });
-});
-
-describe('switchModel error handling', () => {
-  it('shows an error message for a 404 response', async () => {
-    const root = app.root;
-    (global as any).fetch = vi.fn(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve({ ok: false, status: 404 }), 1)
-        )
-    );
-
-    const promise = window.switchModel('missing_model');
-    expect(root.children.length).toBe(2);
-
-    await vi.runAllTimersAsync();
-    await promise;
-
-    expect(document.getElementById('statusArea')?.textContent).toBe(
-      'Error loading model'
-    );
-    expect(root.children.length).toBe(1);
-    expect(app.assets.list.length).toBe(0);
-  });
-
-  it('shows an error message for invalid JSON', async () => {
-    const root = app.root;
-    (global as any).fetch = vi.fn(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve({ ok: true, json: async () => ({}) }), 1)
-        )
-    );
-
-    const promise = window.switchModel('invalid_model');
-    expect(root.children.length).toBe(2);
-
-    await vi.runAllTimersAsync();
-    await promise;
-
-    expect(document.getElementById('statusArea')?.textContent).toBe(
-      'Error loading model'
-    );
-    expect(root.children.length).toBe(1);
-    expect(app.assets.list.length).toBe(0);
+    expect(window.switchModel).toHaveBeenCalledTimes(3);
+    expect(status.textContent).toBe('step 3');
   });
 });
