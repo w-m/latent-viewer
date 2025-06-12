@@ -20,7 +20,7 @@ vi.mock('react-dom/client', () => ({
   createRoot: createRootMock,
 }));
 vi.mock(
-  '../public/LatentGrid',
+  '../src/components/LatentGrid',
   () => ({ LatentGrid: function LatentGrid() {}, LatentGridHandle: {} }),
   { virtual: true }
 );
@@ -136,7 +136,7 @@ beforeEach(async () => {
   pcAppEl = document.querySelector('pc-app') as HTMLElement & { app: any };
   pcAppEl.app = app;
 
-  await import('../public/main.ts');
+  await import('../src/bootstrap/index.ts');
 });
 
 afterEach(() => {

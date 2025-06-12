@@ -13,6 +13,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["public/**/*", "src/**/*"],
+  "include": ["src/**/*", "public/grid-demo.tsx"],
   "exclude": ["node_modules", "dist"]
 }

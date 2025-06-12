@@ -24,7 +24,7 @@ import { XrNavigation } from 'playcanvas/scripts/esm/xr-navigation.mjs';
 // 4) React components
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { LatentGrid, LatentGridHandle } from './LatentGrid';
+import { LatentGrid, LatentGridHandle } from '../components/LatentGrid';
 
 // Configurable data root - must be set in .env file
 const DATA_ROOT = (import.meta as any).env.VITE_DATA_ROOT;

@@ -31,7 +31,7 @@ vi.mock('konva', () => ({
   },
 }));
 
-import { LatentGrid } from '../public/LatentGrid';
+import { LatentGrid } from '../src/components/LatentGrid';
 
 beforeEach(() => {
   localStorage.clear();
