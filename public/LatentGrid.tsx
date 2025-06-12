@@ -15,7 +15,7 @@ interface Props {
   totalHeight?: number; // default 1200, pixel height of the entire grid
   indicatorOpacity?: number; // default 1.0, opacity of the drag indicator
   cornerColors?: [string, string, string, string]; // colors for top-left, top-right, bottom-right, bottom-left corners
-  onCellEnter?: (row: number, col: number) => void;
+  _onCellEnter?: (row: number, col: number) => void;
   onLatentChange?: (row: number, col: number, x: number, y: number) => void; // callback for when latent position changes
   isLoading?: boolean; // highlight cell differently while loading
 }
@@ -38,7 +38,7 @@ export const LatentGrid = forwardRef<LatentGridHandle, Props>(
       totalHeight = 400,
       indicatorOpacity = 1.0,
       cornerColors = ['#FF5733', '#33FF57', '#3357FF', '#F033FF'],
-      onCellEnter = () => {},
+      _onCellEnter = () => {},
       onLatentChange = () => {},
       isLoading = false,
     },
@@ -151,7 +151,6 @@ export const LatentGrid = forwardRef<LatentGridHandle, Props>(
         indicatorPos.y / totalHeight
       );
       // We intentionally exclude dependencies to run exactly once on mount.
-      // eslint-disable-next-line
     }, []);
 
     // Remove cell glow animation (obsolete)
