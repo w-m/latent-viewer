@@ -4,8 +4,8 @@
   "main": "index.js",
   "sideEffects": false,
   "scripts": {
-    "dev": "node scripts/gen-model-sizes.js && vite",
-    "build": "node scripts/gen-model-sizes.js && tsc && vite build",
+    "dev": "node scripts/gen-meta.js && vite",
+    "build": "node scripts/gen-meta.js && tsc && vite build",
     "preview": "vite preview",
     "get-test-data": "node scripts/get-test-data.js",
     "tsc": "tsc --noEmit",

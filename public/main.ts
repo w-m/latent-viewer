@@ -25,7 +25,28 @@ import { XrNavigation } from 'playcanvas/scripts/esm/xr-navigation.mjs';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LatentGrid, LatentGridHandle } from './LatentGrid';
-import { MODEL_SIZES, TOTAL_MODEL_BYTES } from '../src/model-sizes';
+
+// Configurable data root (absolute URL or relative path)
+const DATA_ROOT =
+  (import.meta as any).env.VITE_DATA_ROOT || 'compressed_head_models_512_16x16';
+
+// Filled after loading latent-viewer-meta.json
+let MODEL_SIZES: Record<string, number> = {};
+let TOTAL_MODEL_BYTES = 0;
+
+async function loadMetadata(): Promise<void> {
+  try {
+    const res = await fetch(`${DATA_ROOT}/latent-viewer-meta.json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json && typeof json === 'object') {
+      MODEL_SIZES = json.cellBytes || {};
+      TOTAL_MODEL_BYTES = json.totalBytes || 0;
+    }
+  } catch (err) {
+    console.error('Failed to load metadata', err);
+  }
+}
 
 // ------------------------------------------------------------
 // Utility: small debounce implementation (trailing-edge only)
@@ -81,8 +102,12 @@ let bulkAbort: { canceled: boolean } | null = null;
 let updateDownloadStatus: (() => void) | null = null;
 let programmaticMove = false;
 
+function dirName(row: number, col: number): string {
+  return `model_c${col.toString().padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
+}
+
 function modelPath(row: number, col: number): string {
-  return `compressed_head_models_512_16x16/model_c${col.toString().padStart(2, '0')}_r${row.toString().padStart(2, '0')}`;
+  return `${DATA_ROOT}/${dirName(row, col)}`;
 }
 
 function initCachedBytes() {
@@ -94,8 +119,8 @@ function initCachedBytes() {
         for (let r = 0; r < gridSize; r++) {
           for (let c = 0; c < gridSize; c++) {
             if (arr[r][c]) {
-              const p = modelPath(r, c);
-              cachedBytes += MODEL_SIZES[p] || 0;
+              const key = dirName(r, c);
+              cachedBytes += MODEL_SIZES[key] || 0;
               countedCells.add(`${r},${c}`);
             }
           }
@@ -106,8 +131,6 @@ function initCachedBytes() {
     /* ignore */
   }
 }
-
-initCachedBytes();
 
 // ------------------------------------------------------------------
 // Loading indicator (pill in top-left corner)
@@ -179,10 +202,14 @@ function initApplication(): void {
     return;
   }
 
-  // Initialize React UI immediately - don't wait for pcApp.ready
-  initializeReactGrid();
-  initFullscreenButton();
-  initSettingsButton();
+  // Load metadata, then initialize UI
+  loadMetadata().then(() => {
+    initCachedBytes();
+    initializeReactGrid();
+    initFullscreenButton();
+    initSettingsButton();
+    updateDownloadStatus?.();
+  });
 
   // Wait for the PC app to be ready
   pcApp.addEventListener(
@@ -647,8 +674,8 @@ function initDynamicLoader(pcApp: any): void {
             (window as any).markCellCached?.(rc[0], rc[1]);
             const key = `${rc[0]},${rc[1]}`;
             if (!countedCells.has(key)) {
-              const p = modelPath(rc[0], rc[1]);
-              cachedBytes += MODEL_SIZES[p] || 0;
+              const metaKey = dirName(rc[0], rc[1]);
+              cachedBytes += MODEL_SIZES[metaKey] || 0;
               countedCells.add(key);
               updateDownloadStatus?.();
             }

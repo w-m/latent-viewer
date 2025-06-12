@@ -46,6 +46,13 @@ This downloads all 256 folders (711.6&nbsp;MB) of compressed head models into
 `public/compressed_head_models_512_16x16/`. The script fetches files in parallel
 to speed up the process.
 
+Alternatively you can point the viewer at the remote dataset without
+downloading anything by setting the `VITE_DATA_ROOT` environment variable:
+
+```bash
+VITE_DATA_ROOT=https://fraunhoferhhi.github.io/cgs-gan/viewer/compressed_head_models_512_16x16 npm run dev
+```
+
 ### Requirements
 
 - **Node 18 LTS** or newer (uses modern `import`/`export`)
@@ -65,7 +72,7 @@ latent-viewer/
 │   ├── grid-demo.html              # Standalone latent-grid prototype
 │   ├── grid-demo.tsx               # Source for grid-demo.html
 │   └── LatentGrid.tsx              # React component for the interactive latent grid
-├── src/                    # Type definitions and generated model-size index
+├── src/                    # Type definitions
 ├── dist/              # Production build (generated)
 ├── package.json       # Dependencies & scripts
 ├── vite.config.js     # Vite zero-config with custom root/outDir
@@ -102,9 +109,10 @@ latent-viewer/
 To add your own GSplat datasets or raw `.ply` files:
 
 1. Copy your raw `*.ply` file or a SOGS folder (containing `meta.json` and texture files) into the `public/` directory (e.g. under `compressed_head_models_512_16x16/`).
-2. Re-generate the model-size index (used for caching and download counters) and restart the dev server:
+2. Generate `latent-viewer-meta.json` in the data root and restart the dev server:
 
    ```bash
+   node scripts/gen-meta.js /path/to/your/data
    npm run dev
    ```
 
