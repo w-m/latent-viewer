@@ -103,6 +103,7 @@ let app: any;
 let pcAppEl: HTMLElement;
 
 beforeEach(async () => {
+  vi.resetModules();
   vi.useFakeTimers();
   (global as any).fetch = vi.fn(
     () =>
@@ -172,5 +173,51 @@ describe('switchModel queue', () => {
     expect(root.children.length).toBe(1);
     expect(app.assets.list.length).toBe(1);
     expect(app.assets.list[0].name).toBe('gsplat-model_c');
+  });
+});
+
+describe('switchModel error handling', () => {
+  it('shows an error message for a 404 response', async () => {
+    const root = app.root;
+    (global as any).fetch = vi.fn(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ ok: false, status: 404 }), 1)
+        )
+    );
+
+    const promise = window.switchModel('missing_model');
+    expect(root.children.length).toBe(2);
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(document.getElementById('statusArea')?.textContent).toBe(
+      'Error loading model'
+    );
+    expect(root.children.length).toBe(1);
+    expect(app.assets.list.length).toBe(0);
+  });
+
+  it('shows an error message for invalid JSON', async () => {
+    const root = app.root;
+    (global as any).fetch = vi.fn(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ ok: true, json: async () => ({}) }), 1)
+        )
+    );
+
+    const promise = window.switchModel('invalid_model');
+    expect(root.children.length).toBe(2);
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(document.getElementById('statusArea')?.textContent).toBe(
+      'Error loading model'
+    );
+    expect(root.children.length).toBe(1);
+    expect(app.assets.list.length).toBe(0);
   });
 });
