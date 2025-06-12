@@ -1,15 +1,13 @@
-# Latent-Viewer – Gaussian-Splat & SOGS demo
+# latent-viewer
 
-Latent-Viewer is a **zero-boilerplate** PlayCanvas setup for viewing
-3-D Gaussian Splat (GSplat) scenes in the browser. It supports:
+latent-viewer is browser viewer for sets of 3D Gaussian Splatting scenes. The user can explore hundreds of different 3DGS models by dragging a selector through the model grid:
 
-- Desktop & mobile orbit / pan / zoom camera (inertia, touch, wheel …)
-- Optional WebXR controller + teleport navigation
-- Both **raw \*.ply** splats and **compressed SOGS** assets
-- Production builds tree-shake and minify dependencies and app code (~2.2 MB uncompressed JS; ~650 kB gzipped JS; scene data loaded on demand)
+![Demo](latent-viewer-demo.gif)
 
-Everything is declaratively described in **HTML** via
-[`@playcanvas/web-components`](https://github.com/playcanvas/playcanvas-web-components).
+This viewer was built to showcase [CGS-GAN](https://fraunhoferhhi.github.io/cgs-gan/).
+
+The 3DGS models are rendered with [PlayCanvas engine](https://github.com/playcanvas/engine). Models can be loaded in compressed
+[Self-Organizing Gaussians](https://fraunhoferhhi.github.io/Self-Organizing-Gaussians/) form.
 
 ---
 
@@ -127,22 +125,6 @@ npm install
 ## Model Switching Implementation
 
 This project includes an enhanced model switching implementation that eliminates flickering between 3D Gaussian Splat models. The implementation uses PlayCanvas's `sorter.on('updated')` event to detect when a model is fully loaded and ready to render before switching.
-
-### Building and Running with Model Switching
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Development server with hot reload
-npm run dev        # Starts the dev server at http://localhost:5173
-
-# 3. Build the project for production
-npm run build      # Outputs optimized files to ./dist
-
-# 4. Preview the production build
-npm run preview    # Serves the ./dist folder
-```
 
 ### How Model Switching Works
 
