@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <!-- This page is an example of how to embed the
+        latent-viewer in your own website.
+        It is not a standalone application. -->
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Latent Viewer</title>
+  </head>
+  <body>
+    <h2>Interactive Latent Viewer</h2>
+    <p>
+      Explore the latent space using the web viewer from
+      <a
+        href="https://blog.playcanvas.com/playcanvas-adopts-sogs-for-20x-3dgs-compression/"
+      >
+        PlayCanvas</a
+      >
+      paired with
+      <a href="https://fraunhoferhhi.github.io/Self-Organizing-Gaussians/">
+        SOG Compression</a
+      >.
+    </p>
+
+    <iframe class="latent-viewer" src="./dist/index.html" loading="lazy">
+    </iframe>
+
+    <style>
+      /* desktop / “wide” */
+      .latent-viewer {
+        width: 100%;
+        height: 600px; /* matches your current layout          */
+        border: 0;
+        border-radius: 10px;
+      }
+
+      /* phones & tablets whose layout stacks the controls */
+      @media (max-width: 768px) {
+        /* tweak the breakpoint to your design */
+        .latent-viewer {
+          /* fill most of the screen but never overflow */
+          height: min(90vh, 1200px);
+          /* or, if you prefer an aspect-ratio based rule:
+       aspect-ratio: 9 / 16;   (comment out height above) */
+        }
+      }
+    </style>
+  </body>
+</html>

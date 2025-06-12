@@ -17,11 +17,17 @@ export default defineConfig({
   build: {
     outDir: '../dist', // optional "npm run build"
     sourcemap: false,
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./public/index.html', import.meta.url)),
+      },
+    },
     terserOptions: {
       format: {
         comments: false,
       },
     },
   },
+  base: './', // Use relative paths for assets
   plugins: [react()],
 });
