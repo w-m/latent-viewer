@@ -19,7 +19,7 @@ git clone https://github.com/w-m/latent-viewer.git
 cd latent-viewer
 npm install
 
-# Configure where models live, relative to public/
+# Configure where models live, relative to your `index.html` location
 echo "VITE_DATA_ROOT=data/compressed_head_models_512_16x16" > .env  # edit the path if you have your own models
 
 # Download the sample dataset (~700\u00a0MB)
