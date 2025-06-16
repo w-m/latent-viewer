@@ -31,8 +31,31 @@ function getMetadataPath() {
   return path.join(getAbsoluteDataPath(), 'latent-viewer-meta.json');
 }
 
-module.exports = {
+// Camera default position (x, y, z)
+const cameraPosEnv =
+  process.env.VITE_CAMERA_POSITION || process.env.CAMERA_POSITION || null;
+if (!cameraPosEnv) {
+  console.error('❌ VITE_CAMERA_POSITION environment variable is not set!');
+  process.exit(1);
+}
+const cameraPosition = cameraPosEnv.split(' ').map(Number);
+
+// Vertical offset applied to loaded model (y-axis)
+const modelOffsetEnv =
+  process.env.VITE_MODEL_OFFSET_Y || process.env.MODEL_OFFSET_Y || null;
+if (modelOffsetEnv === null) {
+  console.error('❌ VITE_MODEL_OFFSET_Y environment variable is not set!');
+  process.exit(1);
+}
+const modelOffsetY = parseFloat(modelOffsetEnv);
+
+const config = {
   getDataRoot,
   getAbsoluteDataPath,
   getMetadataPath,
+  cameraPosition,
+  modelOffsetY,
 };
+
+module.exports = config;
+module.exports.default = config;

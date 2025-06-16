@@ -16,6 +16,34 @@ declare global {
 }
 window.pc = pc;
 
+// ---------------------------------------------------------------------------
+// Configuration values injected via Vite environment variables (browser-safe)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a whitespace-separated vector string into numbers.
+ * Returns the provided fallback if parsing fails.
+ */
+function parseVec3(
+  str: string | undefined,
+  fallback: [number, number, number]
+): [number, number, number] {
+  if (!str) return fallback;
+  const parts = str.trim().split(/\s+/).map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return fallback;
+  return parts as [number, number, number];
+}
+
+// Using import.meta.env ensures only simple strings are embedded into the bundle
+const CAMERA_POSITION = parseVec3(
+  (import.meta as any).env.VITE_CAMERA_POSITION,
+  [0, 0, 2]
+);
+const MODEL_OFFSET_Y = (() => {
+  const v = parseFloat((import.meta as any).env.VITE_MODEL_OFFSET_Y ?? '0');
+  return Number.isFinite(v) ? v : 0;
+})();
+
 // 3) helper scripts
 import { CameraControls } from 'playcanvas/scripts/esm/camera-controls.mjs';
 import { XrControllers } from 'playcanvas/scripts/esm/xr-controllers.mjs';
@@ -242,6 +270,11 @@ function initApplication(): void {
 
       // Access PlayCanvas application instance
       const app = (pcApp as any).app as pc.Application;
+      // Apply configured camera position
+      const camEnt = app.root.findByName('camera') as pc.Entity | null;
+      if (camEnt) {
+        camEnt.setLocalPosition(...CAMERA_POSITION);
+      }
 
       // ------------------------------------------------------------
       // Background color picker hookup
@@ -522,6 +555,8 @@ function initDynamicLoader(pcApp: any): void {
   function makeViewer(): GSplatEntity {
     const e = new pc.Entity('gsplat-holder') as GSplatEntity;
     e.addComponent('gsplat', { asset: null });
+    // Offset model vertically using configured offset
+    e.setLocalPosition(0, MODEL_OFFSET_Y, 0);
     return e;
   }
 

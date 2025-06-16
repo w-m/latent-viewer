@@ -21,13 +21,20 @@ npm install
 
 # Configure where models live, relative to your `index.html` location
 echo "VITE_DATA_ROOT=data/compressed_head_models_512_16x16" > .env  # edit the path if you have your own models
-
-# Download the sample dataset (~700\u00a0MB)
-npm run get-test-data
-
-# Start the dev server (http://localhost:5173)
-npm run dev
+# (Optional) Set default camera position (x y z) and model vertical offset (y-axis)
+echo "VITE_CAMERA_POSITION=0 0 1.3" >> .env
+echo "VITE_MODEL_OFFSET_Y=0.2" >> .env
 ```
+
+### Configuration
+
+The application reads the following environment variables from `.env`:
+
+- **VITE_DATA_ROOT**: Path to the directory containing the 3DGS model grid, relative to `public/`.
+- **VITE_CAMERA_POSITION**: Three space-separated numbers `x y z` specifying the camera's default position in the scene (e.g. `0 0 1.3`).
+- **VITE_MODEL_OFFSET_Y**: Single number specifying how much to raise the loaded model along the Y axis (e.g. `0.2`).
+
+These values are consumed by `latent-viewer.config.js` and applied at runtime to position the camera and vertically offset the 3DGS entity.
 
 ---
 
