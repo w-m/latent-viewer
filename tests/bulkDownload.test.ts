@@ -32,6 +32,7 @@ vi.mock('playcanvas', () => {
     parent: Entity | null = null;
     children: Entity[] = [];
     gsplat: any = { asset: null, instance: { sorter: new EventEmitter() } };
+    setLocalPosition = vi.fn();
     constructor(name = '') {
       super();
       this.name = name;
@@ -92,17 +93,33 @@ vi.mock('playcanvas', () => {
     root = new Entity('root');
     assets = new AssetRegistry();
     renderNextFrame = vi.fn();
+    setCanvasFillMode = vi.fn();
+    setCanvasResolution = vi.fn();
+    resizeCanvas = vi.fn();
+    graphicsDevice = { canvas: { style: {} } } as any;
   }
 
   function registerScript() {}
 
-  return { Entity, Asset, Application, registerScript };
+  return {
+    Entity,
+    Asset,
+    Application,
+    registerScript,
+    FILLMODE_NONE: 0,
+    RESOLUTION_AUTO: 'auto',
+  };
 });
 
 let pcAppEl: HTMLElement & { app: any };
 
 beforeEach(async () => {
   vi.useFakeTimers();
+  (global as any).ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
   (global as any).fetch = vi.fn(
     () =>
       new Promise((resolve) =>
