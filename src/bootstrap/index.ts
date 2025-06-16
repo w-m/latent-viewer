@@ -270,6 +270,47 @@ function initApplication(): void {
 
       // Access PlayCanvas application instance
       const app = (pcApp as any).app as pc.Application;
+
+      // -------------------------------------------------------------------
+      // Make the canvas match only its parent <pc-app> element instead of
+      // always filling the entire window. This fixes horizontal centering
+      // when a sidebar is shown (desktop layout).
+      // -------------------------------------------------------------------
+
+      // Switch away from the default FILLMODE_FILL_WINDOW that PlayCanvas
+      // Web Components set up internally. Using FILLMODE_NONE lets us size
+      // the canvas explicitly via CSS / ResizeObserver so it exactly follows
+      // the pc-app element (which itself is 100% of the right-hand pane).
+      app.setCanvasFillMode(pc.FILLMODE_NONE);
+      app.setCanvasResolution(pc.RESOLUTION_AUTO);
+
+      const canvas = app?.graphicsDevice?.canvas as
+        | HTMLCanvasElement
+        | undefined;
+      if (canvas) {
+        // Ensure the canvas follows the pc-app bounds.
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+
+        // Resize once right after switching fill mode.
+        app.resizeCanvas();
+
+        // Keep it in sync whenever the pc-app element resizes (e.g. when the
+        // window is resized or the layout switches to fullscreen).
+        const ro = new ResizeObserver(() => {
+          app.resizeCanvas();
+        });
+        ro.observe(pcApp as Element);
+
+        // Clean-up on page unload to avoid leaks.
+        window.addEventListener(
+          'beforeunload',
+          () => {
+            ro.disconnect();
+          },
+          { once: true }
+        );
+      }
       // Apply configured camera position
       const camEnt = app.root.findByName('camera') as pc.Entity | null;
       if (camEnt) {
